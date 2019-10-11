@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:ssh/ssh.dart';
+import 'package:ssh/ssh.dart';
 import 'package:flutter/services.dart';
 import "password.dart";
+import "textfield_in_alert.dart";
 
 void main() => runApp(MyApp());
 
@@ -45,9 +47,18 @@ class MyHomePage extends StatefulWidget {
   String filePath = "";
   String user = SSH_USER;
   String password = SSH_PASS;
+  String kerb_user = "";
+  String kerb_pass = "";
+  String printer = "";
+  String auth_method = "1";
 
   @override
   _MyHomePageState createState() => _MyHomePageState();
+
+  @override
+  void initState() {
+    TextFieldAlertDialog();
+  }
 }
 
 class _MyHomePageState extends State<MyHomePage> {
@@ -73,7 +84,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
     String result;
 
-
     try {
       // Create SSH session
       print("Attempting to create SSH session with " + client.host + "...");
@@ -81,6 +91,10 @@ class _MyHomePageState extends State<MyHomePage> {
       print("[Result] " + result);
 
       if (result == "session_connected") {
+        var dir = widget.kerb_user + "_printFiles";
+
+        result = await client.execute("rm -rf " + dir);
+        print("[Result]" + result);
 
         // Create SFTP Session
         print("Attempting to connect to SFTP...");
@@ -89,18 +103,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
         if (result == "sftp_connected") {
 
-          // Upload PrintJob Files
-          var dir = widget.kerb_user + "_printFiles";
-          print("Checking if temporary directory " + dir + " exists...");
-          result = (await client.sftpLs(".")).join();
-          print(result);
-          if (result.contains(dir)) {
-            print("[Warning] Directory already exists... Removing...");
-            result = await client.sftpRm("./" + dir + "/*");
-            print("[Result]" + result);
-            result = await client.sftpRmdir("/home/pharos/" + dir);
-            print("[Result] " + result);
-          }
+          // Upload PrintJob File
           print("Creating temporary directory...");
           result = await client.sftpMkdir(dir);
           print("[Result] " + result);
@@ -114,16 +117,17 @@ class _MyHomePageState extends State<MyHomePage> {
           result = await client.disconnectSFTP();
           await client.connect();
        //   print("[Result]" + result);
-
+          var result2 = await client.startShell(
+              ptyType: "xterm", // defaults to vanilla
+              callback: (dynamic res) {
+                print(res);     // read from shell
+              }
+          );
           // Execute ./printJob Command on mitprint.xvm.mit.edu
-          String cmd = "~/./printJob "
-                  + "${widget.kerb_user} "
-                  + "${widget.kerb_pass} "
-                  + "${widget.auth_method} "
-                  + "./${dir} "
-                  + "${widget.printer}";
+          String cmd = "ls";
           print("Running printJob command: `" + cmd + "`...");
-          result = await client.execute(cmd);
+          //result = await client.execute(cmd);
+          await client.writeToShell(cmd + "\n");
           print("[Result]" + result);
 
           // Disconnect from SSH session
