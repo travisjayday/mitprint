@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:ssh/ssh.dart';
 import 'package:flutter/services.dart';
+import "passwords.dart";
 
 void main() => runApp(MyApp());
 
@@ -42,6 +43,8 @@ class MyHomePage extends StatefulWidget {
 
   final String title;
   String filePath = "";
+  String user = SSH_USER;
+  String password = SSH_PASS;
 
   @override
   _MyHomePageState createState() => _MyHomePageState();

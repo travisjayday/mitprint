@@ -1,0 +1,2 @@
+String SSH_PASS = "HELLO WROLD";
+String SSH_USER = "HELLO WROLD";
