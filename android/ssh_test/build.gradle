@@ -1,9 +1,0 @@
-apply plugin: 'java-library'
-
-dependencies {
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
-    implementation files('/Volumes/THAWSPACE/Users/tjz/jsch-0.1.55.jar')
-}
-
-sourceCompatibility = "7"
-targetCompatibility = "7"
