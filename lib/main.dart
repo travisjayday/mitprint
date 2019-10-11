@@ -5,6 +5,11 @@ import 'package:ssh/ssh.dart';
 import 'package:flutter/services.dart';
 import "password.dart";
 import 'package:shared_preferences/shared_preferences.dart';
+import 'backgroundPainter.dart';
+import 'ClipShadowPath.dart';
+import 'backgroundClipper.dart';
+import 'dart:convert';
+import 'dart:typed_data';
 
 void main() => runApp(MyApp());
 
@@ -57,6 +62,8 @@ class MyHomePage extends StatefulWidget {
 
   bool remember_pass = false;
 
+  AssetImage printPreviewImg;
+
   @override
   _MyHomePageState createState() => _MyHomePageState();
 }
@@ -92,6 +99,10 @@ class _MyHomePageState extends State<MyHomePage> {
     if (widget.filePath == "") {
       print("No file was selected, picking file...");
       await _pickFile();
+      setState(() {
+        widget.printPreviewImg = new AssetImage(widget.filePath);
+      });
+      return;
     }
     String stored = await _diskRead("kerb_user");
     if (stored != null) {
@@ -257,41 +268,89 @@ class _MyHomePageState extends State<MyHomePage> {
     // fast, so that you can just rebuild anything that needs updating rather
     // than having to individually change instances of widgets.
     return Scaffold(
+        backgroundColor: Colors.grey[100],
         body: Center(
-      child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          mainAxisSize: MainAxisSize.max,
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Text("MIT Print"),
-            Column(children: [
-              Text(widget.filePath),
-              RaisedButton(onPressed: _pickFile, child: Text("Pick File")),
-              Stack(children: [
-                Positioned.fill(child: Align(alignment: Alignment.bottomCenter,
-                child:
-                Container(
-                    width: MediaQuery.of(context).size.width,
-                    height: 100,
-                    decoration: new BoxDecoration(
-                      color: Colors.blue,
-                    ),
-                ))),
+            child: Stack(children: [
+          Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
                 Center(
-                    child: Padding(
-                        padding: EdgeInsets.only(bottom: 20.0),
-                        child: RaisedButton(
-                            onPressed: _printFile,
-                            color: Colors.white,
-                            padding: const EdgeInsets.all(30.0),
-                            shape: CircleBorder(),
-                            child: Icon(Icons.print,
-                                color: Colors.blue,
-                                size: 90)) //Your widget here,
-                        ))
+                    child: Text(
+                  "MIT Print",
+                  textScaleFactor: 1.3,
+                )),
+                Container(
+                    padding: EdgeInsets.only(left: 10.0),
+                    height: MediaQuery.of(context).size.height * 0.5,
+                    decoration: new BoxDecoration(
+                      image: new DecorationImage(
+                        image: widget.printPreviewImg != null
+                            ? widget.printPreviewImg
+                            : Image.memory(base64Decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=")),
+                        fit: BoxFit.cover,
+                      ),
+                    )),
               ]),
-            ])
-          ]),
-    ));
+          Positioned.fill(
+              child: Align(
+                  alignment: Alignment.topCenter,
+                  child: Padding(
+                      padding: EdgeInsets.only(top: 40.0),
+                      child: Text("",
+                          textScaleFactor: 1.2,
+                          style: TextStyle(color: Colors.blue))))),
+          ClipShadowPath(
+            clipper: SideArrowClip(),
+            shadow: Shadow(blurRadius: 5, color: Color.fromRGBO(0, 0, 0, 0.4)),
+            child: Container(
+                color: Colors.blue,
+                width: MediaQuery.of(context).size.width,
+                height: MediaQuery.of(context).size.height),
+          ),
+          Positioned.fill(
+              child: Align(
+            alignment: Alignment.bottomCenter,
+            child: Padding(
+                padding: EdgeInsets.only(bottom: 20.0),
+                child: RaisedButton(
+                    onPressed: _printFile,
+                    color: Colors.white,
+                    elevation: 10,
+                    padding: const EdgeInsets.all(30.0),
+                    shape: CircleBorder(),
+                    child: Icon(Icons.print,
+                        color: Colors.blue, size: 90)) //Your widget here,
+                ),
+          )),
+        ])));
+    /*Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+            child: CustomPaint(
+
+          painter: BackgroundPainter(),
+          child: Container(width: MediaQuery.of(context).size.width, child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisSize: MainAxisSize.max,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text("MIT Print"),
+                Column(children: [
+                  Text(widget.filePath),
+                  RaisedButton(onPressed: _pickFile, child: Text("Pick File")),
+                  Padding(
+                      padding: EdgeInsets.only(bottom: 20.0),
+                      child: RaisedButton(
+                          onPressed: _printFile,
+                          color: Colors.white,
+                          padding: const EdgeInsets.all(30.0),
+                          shape: CircleBorder(),
+                          child: Icon(Icons.print,
+                              color: Colors.blue, size: 90)) //Your widget here,
+                      ),
+                ])
+              ]),
+        ))));*/
   }
 }
