@@ -4,7 +4,7 @@ import 'package:ssh/ssh.dart';
 import 'package:ssh/ssh.dart';
 import 'package:flutter/services.dart';
 import "password.dart";
-import "textfield_in_alert.dart";
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() => runApp(MyApp());
 
@@ -49,33 +49,79 @@ class MyHomePage extends StatefulWidget {
   String password = SSH_PASS;
   String kerb_user = "";
   String kerb_pass = "";
-  String printer = "";
+  String printer = "mitprint";
   String auth_method = "1";
+
+  TextEditingController kerbPassTextController = TextEditingController();
+  TextEditingController kerbUserTextController = TextEditingController();
+
+  bool remember_pass = false;
 
   @override
   _MyHomePageState createState() => _MyHomePageState();
-
-  @override
-  void initState() {
-    TextFieldAlertDialog();
-  }
 }
 
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
   static const platform = const MethodChannel('flutter.native/helper');
 
-  void pickFile() async {
+  _diskRead(key) async {
+    final prefs = await SharedPreferences.getInstance();
+    final value = prefs.getString(key) ?? null;
+    print('read: $value');
+    return value;
+  }
+
+  _diskWrite(key, value) async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setString(key, value);
+    print('saved $value');
+  }
+
+  void _pickFile() async {
     var path = await FilePicker.getFilePath(type: FileType.ANY);
     setState(() {
       if (path != null) {
         widget.filePath = path;
       } else
-        widget.filePath = "File not Found";
+        widget.filePath = "";
     });
   }
 
-  void printFile() async {
+  void _printFile() async {
+    if (widget.filePath == "") {
+      print("No file was selected, picking file...");
+      await _pickFile();
+    }
+    String stored = await _diskRead("kerb_user");
+    if (stored != null) {
+      widget.kerb_user = stored;
+    }
+    stored = await _diskRead("kerb_pass");
+    if (stored != null) {
+      widget.kerb_pass = stored;
+    }
+    stored = await _diskRead("remember_pass");
+    if (stored != null) {
+      widget.remember_pass = (stored == "true");
+    }
+
+    if (widget.kerb_user == "" || widget.kerb_pass == "") {
+      print("No user/pass was selected...");
+      await _displayKerbDialog(context);
+      if (widget.kerb_user == "") {
+        print("User action: Cancel");
+        return;
+      } else {
+        await _diskWrite("kerb_user", widget.kerb_user);
+        if (widget.remember_pass)
+          await _diskWrite("kerb_pass", widget.kerb_pass);
+        await _diskWrite(
+            "remember_pass", widget.remember_pass ? "true" : "false");
+      }
+      print("Attempting to start printjob for user: ${widget.kerb_user}...");
+    }
+
     var client = new SSHClient(
         host: "mitprint.xvm.mit.edu",
         port: 22,
@@ -91,8 +137,9 @@ class _MyHomePageState extends State<MyHomePage> {
       print("[Result] " + result);
 
       if (result == "session_connected") {
-        var dir = widget.kerb_user + "_printFiles";
+        var dir = "${widget.kerb_user}_printFiles";
 
+        print("Removing pre-existing directory...");
         result = await client.execute("rm -rf " + dir);
         print("[Result]" + result);
 
@@ -102,49 +149,103 @@ class _MyHomePageState extends State<MyHomePage> {
         print("[Result] " + result);
 
         if (result == "sftp_connected") {
-
           // Upload PrintJob File
           print("Creating temporary directory...");
           result = await client.sftpMkdir(dir);
           print("[Result] " + result);
-          print("Uploading print files...");
-          result =
-              await client.sftpUpload(path: widget.filePath, toPath: dir);
+          print("Uploading print files to " + dir);
+          result = await client.sftpUpload(path: widget.filePath, toPath: dir);
           print("[Result] " + result);
           print("Disconnecting from SFTP...");
 
           // Disconnect form SFTP session
           result = await client.disconnectSFTP();
-          await client.connect();
-       //   print("[Result]" + result);
-          var result2 = await client.startShell(
+
+          print("Re-connecting to client...");
+          result = await client.connect();
+
+          result = await client.startShell(
               ptyType: "xterm", // defaults to vanilla
               callback: (dynamic res) {
-                print(res);     // read from shell
-              }
-          );
+                print(res); // read from shell
+              });
+
           // Execute ./printJob Command on mitprint.xvm.mit.edu
-          String cmd = "ls";
+          String cmd = "expect /home/${SSH_USER}/printJob.sh " +
+              "${widget.kerb_user} " +
+              "${widget.kerb_pass} " +
+              "${widget.auth_method} " +
+              "${dir} " +
+              "${widget.printer}";
           print("Running printJob command: `" + cmd + "`...");
-          //result = await client.execute(cmd);
-          await client.writeToShell(cmd + "\n");
+          result = await client.writeToShell(cmd + "\n");
           print("[Result]" + result);
 
+          new Future.delayed(
+            const Duration(seconds: 60),
+            () async {
+              //client.closeShell();
+              print("Disconnecting from SSH session...");
+              client.disconnect();
+            },
+          );
           // Disconnect from SSH session
-          print("Disconnecting from SSH session...");
-          result = await client.disconnect();
-          print("[Result]" + result);
         }
-      }
-      else {
+      } else {
         print("[Warning] No SSH session is connected...");
       }
     } on PlatformException catch (e) {
-      print('[Error] in client.connect(): ${e.code}\n[Error] Message: ${e.message}');
+      print(
+          '[Error] in client.connect(): ${e.code}\n[Error] Message: ${e.message}');
     }
     setState(() {
       widget.filePath = result;
     });
+  }
+
+  _displayKerbDialog(BuildContext context) async {
+    return showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: Text('Kerberos Credentials'),
+            content: Column(children: [
+              TextField(
+                controller: widget.kerbUserTextController
+                  ..text = widget.kerb_user,
+                decoration: InputDecoration(hintText: "Kerb username"),
+              ),
+              TextField(
+                controller: widget.kerbPassTextController,
+                decoration: InputDecoration(hintText: "Kerb password"),
+                obscureText: true,
+              ),
+              CheckboxListTile(
+                onChanged: (bool value) {
+                  widget.remember_pass = value;
+                },
+                title: Text("Remember password"),
+                value: widget.remember_pass,
+              )
+            ]),
+            actions: <Widget>[
+              new FlatButton(
+                child: new Text('CANCEL'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+              new FlatButton(
+                child: new Text('CONTINUE'),
+                onPressed: () {
+                  widget.kerb_user = widget.kerbUserTextController.text;
+                  widget.kerb_pass = widget.kerbPassTextController.text;
+                  Navigator.of(context).pop();
+                },
+              )
+            ],
+          );
+        });
   }
 
   @override
@@ -157,19 +258,40 @@ class _MyHomePageState extends State<MyHomePage> {
     // than having to individually change instances of widgets.
     return Scaffold(
         body: Center(
-      child: Column(mainAxisAlignment: MainAxisAlignment.start, children: [
-        Text("MIT Print"),
-        Column(children: [
-          Text(widget.filePath),
-          RaisedButton(onPressed: pickFile, child: Text("Pick File")),
-          RaisedButton(
-              onPressed: printFile,
-              color: Colors.blue,
-              padding: const EdgeInsets.all(20.20),
-              shape: CircleBorder(),
-              child: Icon(Icons.print, color: Colors.white, size: 80))
-        ])
-      ]),
+      child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisSize: MainAxisSize.max,
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Text("MIT Print"),
+            Column(children: [
+              Text(widget.filePath),
+              RaisedButton(onPressed: _pickFile, child: Text("Pick File")),
+              Stack(children: [
+                Positioned.fill(child: Align(alignment: Alignment.bottomCenter,
+                child:
+                Container(
+                    width: MediaQuery.of(context).size.width,
+                    height: 100,
+                    decoration: new BoxDecoration(
+                      color: Colors.blue,
+                    ),
+                ))),
+                Center(
+                    child: Padding(
+                        padding: EdgeInsets.only(bottom: 20.0),
+                        child: RaisedButton(
+                            onPressed: _printFile,
+                            color: Colors.white,
+                            padding: const EdgeInsets.all(30.0),
+                            shape: CircleBorder(),
+                            child: Icon(Icons.print,
+                                color: Colors.blue,
+                                size: 90)) //Your widget here,
+                        ))
+              ]),
+            ])
+          ]),
     ));
   }
 }
