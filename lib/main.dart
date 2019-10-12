@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:ssh/ssh.dart';
 import 'package:ssh/ssh.dart';
+import 'package:pdf_render/pdf_render.dart';
 import 'package:flutter/services.dart';
 import "password.dart";
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,6 +11,8 @@ import 'ClipShadowPath.dart';
 import 'backgroundClipper.dart';
 import 'dart:convert';
 import 'dart:typed_data';
+import 'mitprintSettings.dart';
+import 'dart:io' as Io;
 
 void main() => runApp(MyApp());
 
@@ -62,7 +65,10 @@ class MyHomePage extends StatefulWidget {
 
   bool remember_pass = false;
 
-  AssetImage printPreviewImg;
+  var printPreviewImg;
+  int pageCount = 1;
+  int currentPage = 1;
+  PdfDocument pdfPreviewDoc;
 
   @override
   _MyHomePageState createState() => _MyHomePageState();
@@ -79,29 +85,64 @@ class _MyHomePageState extends State<MyHomePage> {
     return value;
   }
 
+  _diskReadBool(key) async {
+    final prefs = await SharedPreferences.getInstance();
+    final value = prefs.getBool(key) ?? null;
+    print('read: $value');
+    return value;
+  }
+
   _diskWrite(key, value) async {
     final prefs = await SharedPreferences.getInstance();
     prefs.setString(key, value);
     print('saved $value');
   }
 
+  _renderPdfPreview(int pageNum) async {
+    final PdfDocument doc = await PdfDocument.openFile(widget.filePath);
+    PdfPage page = await doc.getPage(pageNum);
+    PdfPageImage pageImage = await page.render();
+
+    var data = await pageImage.image.toByteData();
+    Uint8List tmp =
+        await data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+    print(tmp);
+    setState(() {
+      widget.pageCount = doc.pageCount;
+      widget.currentPage = pageNum;
+      widget.printPreviewImg = RawImage(image: pageImage.image);
+    });
+
+    doc.dispose();
+
+    widget.pdfPreviewDoc = doc;
+  }
+
   void _pickFile() async {
     var path = await FilePicker.getFilePath(type: FileType.ANY);
-    setState(() {
-      if (path != null) {
-        widget.filePath = path;
-      } else
-        widget.filePath = "";
-    });
+    if (path != null) {
+      widget.filePath = path;
+      if (widget.filePath.endsWith(".pdf")) {
+        await _renderPdfPreview(1);
+      } else if (widget.filePath.endsWith(".jpg") ||
+          widget.filePath.endsWith(".png") ||
+          widget.filePath.endsWith(".bmp") ||
+          widget.filePath.endsWith(".jpeg")) {
+        setState(() {
+          widget.printPreviewImg = Image.file(new Io.File(widget.filePath));
+        });
+      } else {
+        // TODO: Better user feedback
+        print("Unsupported FileType!!!");
+      }
+    } else
+      widget.filePath = "";
   }
 
   void _printFile() async {
     if (widget.filePath == "") {
       print("No file was selected, picking file...");
       await _pickFile();
-      setState(() {
-        widget.printPreviewImg = new AssetImage(widget.filePath);
-      });
       return;
     }
     String stored = await _diskRead("kerb_user");
@@ -112,9 +153,9 @@ class _MyHomePageState extends State<MyHomePage> {
     if (stored != null) {
       widget.kerb_pass = stored;
     }
-    stored = await _diskRead("remember_pass");
-    if (stored != null) {
-      widget.remember_pass = (stored == "true");
+    var boo = await _diskReadBool("remember_pass");
+    if (boo != null) {
+      widget.remember_pass = boo;
     }
 
     if (widget.kerb_user == "" || widget.kerb_pass == "") {
@@ -127,8 +168,8 @@ class _MyHomePageState extends State<MyHomePage> {
         await _diskWrite("kerb_user", widget.kerb_user);
         if (widget.remember_pass)
           await _diskWrite("kerb_pass", widget.kerb_pass);
-        await _diskWrite(
-            "remember_pass", widget.remember_pass ? "true" : "false");
+        /*await _diskWrite(
+            "remember_pass", widget.remember_pass ? "true" : "false");*/
       }
       print("Attempting to start printjob for user: ${widget.kerb_user}...");
     }
@@ -170,7 +211,7 @@ class _MyHomePageState extends State<MyHomePage> {
           print("Disconnecting from SFTP...");
 
           // Disconnect form SFTP session
-          result = await client.disconnectSFTP();
+          client.disconnectSFTP();
 
           print("Re-connecting to client...");
           result = await client.connect();
@@ -209,9 +250,6 @@ class _MyHomePageState extends State<MyHomePage> {
       print(
           '[Error] in client.connect(): ${e.code}\n[Error] Message: ${e.message}');
     }
-    setState(() {
-      widget.filePath = result;
-    });
   }
 
   _displayKerbDialog(BuildContext context) async {
@@ -269,45 +307,47 @@ class _MyHomePageState extends State<MyHomePage> {
     // than having to individually change instances of widgets.
     return Scaffold(
         backgroundColor: Colors.grey[100],
-        body: Center(
-            child: Stack(children: [
-          Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                    child: Text(
-                  "MIT Print",
-                  textScaleFactor: 1.3,
-                )),
-                Container(
-                    padding: EdgeInsets.only(left: 10.0),
-                    height: MediaQuery.of(context).size.height * 0.5,
-                    decoration: new BoxDecoration(
-                      image: new DecorationImage(
-                        image: widget.printPreviewImg != null
-                            ? widget.printPreviewImg
-                            : Image.memory(base64Decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=")),
-                        fit: BoxFit.cover,
-                      ),
-                    )),
-              ]),
-          Positioned.fill(
-              child: Align(
-                  alignment: Alignment.topCenter,
-                  child: Padding(
-                      padding: EdgeInsets.only(top: 40.0),
-                      child: Text("",
-                          textScaleFactor: 1.2,
-                          style: TextStyle(color: Colors.blue))))),
-          ClipShadowPath(
+        body: Center(child: Stack(children: [
+          Center(
+              child: Padding(
+                  padding: EdgeInsets.fromLTRB(20, 20, 20, 90),
+                  child: Material(
+                      color: Colors.white,
+                      elevation: 2,
+                      child: InkWell(
+                          // When the user taps the button, show a snackbar.
+                          onTap: () {
+                            _pickFile();
+                          },
+                          child: Padding(
+                              padding: EdgeInsets.all(00),
+                              child: AspectRatio(
+                                aspectRatio: 8.5 / 11.0,
+                                child: Container(
+                                    padding: EdgeInsets.only(left: 10.0),
+                                    width:
+                                        MediaQuery.of(context).size.width * 0.8,
+                                    child: Center(child: AspectRatio(
+                                        aspectRatio: 8.5 /11.0, child: widget.printPreviewImg))),
+                              )))))),
+          Padding(
+              padding: EdgeInsets.fromLTRB(23, 50, 25, 0),
+              child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text("MIT Print"),
+                    Text(
+                        "Page ${widget.currentPage.toString()}/${widget.pageCount.toString()}")
+                  ])),
+          IgnorePointer(
+              child: ClipShadowPath(
             clipper: SideArrowClip(),
-            shadow: Shadow(blurRadius: 5, color: Color.fromRGBO(0, 0, 0, 0.4)),
+            shadow: Shadow(blurRadius: 6, color: Color.fromRGBO(0, 0, 0, 0.4)),
             child: Container(
-                color: Colors.blue,
+                color: Colors.grey[900],
                 width: MediaQuery.of(context).size.width,
                 height: MediaQuery.of(context).size.height),
-          ),
+          )),
           Positioned.fill(
               child: Align(
             alignment: Alignment.bottomCenter,
@@ -320,9 +360,45 @@ class _MyHomePageState extends State<MyHomePage> {
                     padding: const EdgeInsets.all(30.0),
                     shape: CircleBorder(),
                     child: Icon(Icons.print,
-                        color: Colors.blue, size: 90)) //Your widget here,
+                        color: Colors.grey[900], size: 70)) //Your widget here,
                 ),
           )),
+          Positioned.fill(
+              child: Align(
+                  alignment: Alignment.bottomLeft,
+                  child: Padding(
+                      padding: EdgeInsets.only(bottom: 14.0),
+                      child: IconButton(
+                          icon: Icon(
+                            Icons.more_vert,
+                            size: 40,
+                            color: Colors.white,
+                          ),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => MitPrintSettings()),
+                            );
+                          })))),
+          Positioned.fill(
+              child: Align(
+                  alignment: Alignment.bottomLeft,
+                  child: Padding(
+                      padding: EdgeInsets.only(bottom: 14.0),
+                      child: IconButton(
+                          icon: Icon(
+                            Icons.more_vert,
+                            size: 40,
+                            color: Colors.white,
+                          ),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => MitPrintSettings()),
+                            );
+                          })))),
         ])));
     /*Scaffold(
         backgroundColor: Colors.white,
