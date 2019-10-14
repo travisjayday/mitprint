@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shared_preferences_settings/shared_preferences_settings.dart';
 
 class MitPrintSettings extends StatelessWidget {
@@ -13,7 +14,7 @@ class MitPrintSettings extends StatelessWidget {
           title: "Authentication",
           children: <Widget>[
             TextFieldModalSettingsTile(settingKey: "kerb_user", title: "Set Kerberos Username"),
-            TextFieldModalSettingsTile(settingKey: "kerb_pass", title: "Set Kerberos Password"),
+            TextFieldModalSettingsTile(subtitle: "••••••••••", settingKey: "kerb_pass", title: "Set Kerberos Password"),
             SwitchSettingsTile(settingKey: "remember_pass", title: "Save & Remember Password"),
             RadioPickerSettingsTile(settingKey: 'Select Duo-authentication method', title: 'Select one option',
               values: {'1': 'Duo Push Notification', '2': 'Phone Call'})

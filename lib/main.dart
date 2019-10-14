@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:mit_print/loadingScreen.dart';
+import 'package:mit_print/terminalShell.dart';
 import 'package:ssh/ssh.dart';
 import 'package:ssh/ssh.dart';
 import 'package:pdf_render/pdf_render.dart';
@@ -13,6 +16,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'mitprintSettings.dart';
 import 'dart:io' as Io;
+import 'dart:convert';
 
 void main() => runApp(MyApp());
 
@@ -23,16 +27,9 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
-        primarySwatch: Colors.blue,
+        primaryColor: Color.fromRGBO(163, 31, 52, 1.0),
+        accentColor: Color.fromRGBO(138, 139, 140, 1.0),
+        backgroundColor: Colors.grey[100],
       ),
       home: MyHomePage(title: 'Flutter Demo Home Page'),
     );
@@ -41,15 +38,6 @@ class MyApp extends StatelessWidget {
 
 class MyHomePage extends StatefulWidget {
   MyHomePage({Key key, this.title}) : super(key: key);
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
 
   final String title;
   String filePath = "";
@@ -66,9 +54,14 @@ class MyHomePage extends StatefulWidget {
   bool remember_pass = false;
 
   var printPreviewImg;
+  Widget printPreviewIcon = Icon(Icons.add, color: Colors.grey[400], size: 100);
   int pageCount = 1;
   int currentPage = 1;
   PdfDocument pdfPreviewDoc;
+
+  List<String> terminalLines;
+  String currentStep = "";
+  double printProgress = 0.0;
 
   @override
   _MyHomePageState createState() => _MyHomePageState();
@@ -77,36 +70,20 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
   static const platform = const MethodChannel('flutter.native/helper');
+  var prefs = null;
+  double stepNum = 0;
+  double totalSteps = 10;
 
-  _diskRead(key) async {
-    final prefs = await SharedPreferences.getInstance();
-    final value = prefs.getString(key) ?? null;
-    print('read: $value');
-    return value;
-  }
-
-  _diskReadBool(key) async {
-    final prefs = await SharedPreferences.getInstance();
-    final value = prefs.getBool(key) ?? null;
-    print('read: $value');
-    return value;
-  }
-
-  _diskWrite(key, value) async {
-    final prefs = await SharedPreferences.getInstance();
-    prefs.setString(key, value);
-    print('saved $value');
-  }
+  _diskReadString(key) async => prefs?.getString(key);
+  _diskReadBool(key) async => prefs?.getBool(key);
+  _diskWriteString(key, value) async => prefs?.setString(key, value);
+  _diskWriteBool(key, value) async => prefs?.setBool(key, value);
 
   _renderPdfPreview(int pageNum) async {
     final PdfDocument doc = await PdfDocument.openFile(widget.filePath);
     PdfPage page = await doc.getPage(pageNum);
     PdfPageImage pageImage = await page.render();
 
-    var data = await pageImage.image.toByteData();
-    Uint8List tmp =
-        await data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
-    print(tmp);
     setState(() {
       widget.pageCount = doc.pageCount;
       widget.currentPage = pageNum;
@@ -119,6 +96,9 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _pickFile() async {
+    setState(() {
+      widget.printPreviewIcon = SpinKitRing(color: Colors.grey[300], size: 110);
+    });
     var path = await FilePicker.getFilePath(type: FileType.ANY);
     if (path != null) {
       widget.filePath = path;
@@ -129,7 +109,9 @@ class _MyHomePageState extends State<MyHomePage> {
           widget.filePath.endsWith(".bmp") ||
           widget.filePath.endsWith(".jpeg")) {
         setState(() {
-          widget.printPreviewImg = Image.file(new Io.File(widget.filePath));
+          widget.printPreviewImg = Padding(
+              padding: EdgeInsets.all(30.0),
+              child: Image.file(new Io.File(widget.filePath)));
         });
       } else {
         // TODO: Better user feedback
@@ -139,40 +121,73 @@ class _MyHomePageState extends State<MyHomePage> {
       widget.filePath = "";
   }
 
+  void _log(String str, [String type]) {
+    switch (type) {
+      case "app":
+        str = "[APP_LOG] " + str;
+        break;
+      case "result":
+        str = "[Result] " + str;
+        break;
+      case "server":
+        str = "[SERVER_LOG] " + str;
+        break;
+      case "warning":
+        str = "[WARNING] " + str;
+        break;
+      case "error":
+        str = "[ERROR] " + str;
+    }
+    print(str);
+    widget.terminalLines.add(str.trimRight());
+  }
+
+  void _updateProgress(String step, [bool fullstep, bool done]) {
+    if (fullstep == null || fullstep == false) stepNum++;
+    if (done != null && done == true) stepNum = totalSteps;
+    setState(() {
+      widget.currentStep = step;
+      widget.printProgress = stepNum / totalSteps;
+    });
+  }
+
   void _printFile() async {
+    stepNum = 0.0;
+    totalSteps = 17.0;
+    prefs = await SharedPreferences.getInstance();
+    widget.terminalLines = new List<String>();
+
     if (widget.filePath == "") {
       print("No file was selected, picking file...");
-      await _pickFile();
-      return;
+      return await _pickFile();
     }
-    String stored = await _diskRead("kerb_user");
-    if (stored != null) {
-      widget.kerb_user = stored;
-    }
-    stored = await _diskRead("kerb_pass");
-    if (stored != null) {
-      widget.kerb_pass = stored;
-    }
-    var boo = await _diskReadBool("remember_pass");
-    if (boo != null) {
-      widget.remember_pass = boo;
-    }
+
+    widget.kerb_user = (await _diskReadString("kerb_user")) ?? "";
+    widget.kerb_pass = (await _diskReadString("kerb_pass")) ?? "";
+    widget.remember_pass = (await _diskReadBool("remember_pass")) ?? false;
 
     if (widget.kerb_user == "" || widget.kerb_pass == "") {
       print("No user/pass was selected...");
-      await _displayKerbDialog(context);
-      if (widget.kerb_user == "") {
+      var result = await _displayKerbDialog(context);
+      if (result == "cancelled") {
         print("User action: Cancel");
         return;
+      } else if (widget.kerb_user == "") {
+        print("Did not specify username!");
+        return;
+      } else if (widget.kerb_pass == "") {
+        print("Did not specify password");
+        return;
       } else {
-        await _diskWrite("kerb_user", widget.kerb_user);
+        await _diskWriteBool("remember_pass", widget.remember_pass);
+        await _diskWriteString("kerb_user", widget.kerb_user);
         if (widget.remember_pass)
-          await _diskWrite("kerb_pass", widget.kerb_pass);
-        /*await _diskWrite(
-            "remember_pass", widget.remember_pass ? "true" : "false");*/
+          await _diskWriteString("kerb_pass", widget.kerb_pass);
       }
-      print("Attempting to start printjob for user: ${widget.kerb_user}...");
     }
+
+    _log(
+        "Attempting to start printjob for user: ${widget.kerb_user}...", "app");
 
     var client = new SSHClient(
         host: "mitprint.xvm.mit.edu",
@@ -180,75 +195,121 @@ class _MyHomePageState extends State<MyHomePage> {
         username: widget.user,
         passwordOrKey: widget.password);
 
-    String result;
-
     try {
-      // Create SSH session
-      print("Attempting to create SSH session with " + client.host + "...");
-      result = await client.connect();
-      print("[Result] " + result);
+      // STEP 1 -- Create SSH Session -----------
+      _updateProgress("Connecting with SSH");
+      _log("Attempting to create SSH session with ${client.host}...", "app");
+      String result = await client.connect();
+      _log(result, "result");
+      // END STEP 1 -----------------------------
 
       if (result == "session_connected") {
         var dir = "${widget.kerb_user}_printFiles";
 
-        print("Removing pre-existing directory...");
+        // STEP 2 -- Remove Old Directories -----
+        _updateProgress("Removing old files...");
+        _log("Removing pre-existing directory...", "app");
         result = await client.execute("rm -rf " + dir);
-        print("[Result]" + result);
+        _log(result, "result");
+        // END STEP 2 ---------------------------
 
-        // Create SFTP Session
-        print("Attempting to connect to SFTP...");
+        // STEP 3 -- Create SFTP Session --------
+        _updateProgress("Connecting to SFTP");
+        _log("Attempting to connect to SFTP...", "app");
         result = await client.connectSFTP();
-        print("[Result] " + result);
+        _log(result, "result");
+        // END STEP 3 ---------------------------
 
         if (result == "sftp_connected") {
-          // Upload PrintJob File
-          print("Creating temporary directory...");
+          // STEP 4 -- Upload PrintJob File -----
+          _updateProgress("Uploading user files...", false);
+          _log("Creating temporary directory...", "app");
           result = await client.sftpMkdir(dir);
-          print("[Result] " + result);
-          print("Uploading print files to " + dir);
-          result = await client.sftpUpload(path: widget.filePath, toPath: dir);
-          print("[Result] " + result);
-          print("Disconnecting from SFTP...");
-
-          // Disconnect form SFTP session
+          _log(result, "result");
+          _log("Uploading print files to " + dir, "app");
+          double step = stepNum;
+          result = await client.sftpUpload(
+            path: widget.filePath,
+            toPath: dir,
+            callback: (progress) {
+              _log(progress.toString(), "server");
+              stepNum = step + (progress / 100.0) * 2; // takes 2 steps
+              _updateProgress("Uploading user files (${progress}%)...");
+            },
+          );
+          _log(result, "result");
+          _updateProgress("Disconnecting from SFTP...");
+          _log("Disconnecting from SFTP...", "app");
           client.disconnectSFTP();
+          // END STEP 4 -------------------------
 
-          print("Re-connecting to client...");
+          // STEP 5 -- Connecting to Athena -----
+          _updateProgress("Connecting to Athena...");
+          _log("Re-connecting to client...", "app");
           result = await client.connect();
+          _log(result, "result");
 
+          bool printSucc = false;
           result = await client.startShell(
-              ptyType: "xterm", // defaults to vanilla
+              ptyType: "xterm",
               callback: (dynamic res) {
-                print(res); // read from shell
+                _log(res, "server"); // read from shell
+                if (res.toString().contains("request id is")) {
+                  printSucc = true;
+                  _log("Found success message! Printjob submitted!", "app");
+                }
+                // find json updates from logging to console
+                RegExp regExp = new RegExp(r"\{.*\}");
+                if (regExp.hasMatch(res)) {
+                  String response = regExp.allMatches(res).first.group(0);
+                  var status = json.decode(response);
+                  _updateProgress(status["desc"]);
+                  // check if status step is 6, the last step in printjob script
+                  if (status["step"] == "6") {
+                    if (printSucc) {
+                      _updateProgress(
+                          "Printjob Succesfully Submitted!", null, true);
+                      _log("Script terminates successfully...", "app");
+                    } else {
+                      _updateProgress("Something Went Wrong", null, true);
+                      _log("Script terminates unsuccessfully...", "app");
+                    }
+                    _log("Disconnecting from SSH server", "app");
+                    client.disconnect();
+                  }
+                }
               });
+          // END Step 5 -------------------------
 
-          // Execute ./printJob Command on mitprint.xvm.mit.edu
+          // STEP 6 -- Execute ./printJob Command on mitprint.xvm.mit.edu
+          _updateProgress("Starting printjob...");
+
+          // Note: the script has 6 sub-steps
           String cmd = "expect /home/${SSH_USER}/printJob.sh " +
               "${widget.kerb_user} " +
               "${widget.kerb_pass} " +
               "${widget.auth_method} " +
               "${dir} " +
               "${widget.printer}";
-          print("Running printJob command: `" + cmd + "`...");
+          _log("Running printJob command on server...", "app");
           result = await client.writeToShell(cmd + "\n");
-          print("[Result]" + result);
+          _log(result, "result");
+          // END STEP 6
 
           new Future.delayed(
             const Duration(seconds: 60),
             () async {
-              //client.closeShell();
-              print("Disconnecting from SSH session...");
+              _log("Timeout Disconnecting from SSH session...", "app");
               client.disconnect();
             },
           );
-          // Disconnect from SSH session
         }
       } else {
-        print("[Warning] No SSH session is connected...");
+        _log("No SSH session is connected... Terminating...", "warning");
       }
     } on PlatformException catch (e) {
-      print(
-          '[Error] in client.connect(): ${e.code}\n[Error] Message: ${e.message}');
+      _log('Fatal: ${e.code}\n[Error] Message: ${e.message}', "error");
+      _updateProgress("Something went wrong...", null, true);
     }
   }
 
@@ -258,7 +319,7 @@ class _MyHomePageState extends State<MyHomePage> {
         builder: (context) {
           return AlertDialog(
             title: Text('Kerberos Credentials'),
-            content: Column(children: [
+            content: Column(mainAxisSize: MainAxisSize.min, children: [
               TextField(
                 controller: widget.kerbUserTextController
                   ..text = widget.kerb_user,
@@ -271,9 +332,11 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               CheckboxListTile(
                 onChanged: (bool value) {
-                  widget.remember_pass = value;
+                  setState(() {
+                    widget.remember_pass = value;
+                  });
                 },
-                title: Text("Remember password"),
+                title: Text("Save password"),
                 value: widget.remember_pass,
               )
             ]),
@@ -281,7 +344,7 @@ class _MyHomePageState extends State<MyHomePage> {
               new FlatButton(
                 child: new Text('CANCEL'),
                 onPressed: () {
-                  Navigator.of(context).pop();
+                  Navigator.of(context).pop("cancelled");
                 },
               ),
               new FlatButton(
@@ -299,15 +362,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
-        backgroundColor: Colors.grey[100],
-        body: Center(child: Stack(children: [
+        backgroundColor: Theme.of(context).backgroundColor,
+        body: Center(
+            child: Stack(children: [
           Center(
               child: Padding(
                   padding: EdgeInsets.fromLTRB(20, 20, 20, 90),
@@ -319,17 +377,17 @@ class _MyHomePageState extends State<MyHomePage> {
                           onTap: () {
                             _pickFile();
                           },
-                          child: Padding(
-                              padding: EdgeInsets.all(00),
-                              child: AspectRatio(
-                                aspectRatio: 8.5 / 11.0,
-                                child: Container(
-                                    padding: EdgeInsets.only(left: 10.0),
-                                    width:
-                                        MediaQuery.of(context).size.width * 0.8,
-                                    child: Center(child: AspectRatio(
-                                        aspectRatio: 8.5 /11.0, child: widget.printPreviewImg))),
-                              )))))),
+                          child: AspectRatio(
+                            aspectRatio: 8.5 / 11.0,
+                            child: Container(
+                                width: MediaQuery.of(context).size.width * 0.8,
+                                child: AspectRatio(
+                                    aspectRatio: 8.5 / 11.0,
+                                    child: Stack(children: [
+                                      Center(child: widget.printPreviewIcon),
+                                      Center(child: widget.printPreviewImg)
+                                    ]))),
+                          ))))),
           Padding(
               padding: EdgeInsets.fromLTRB(23, 50, 25, 0),
               child: Row(
@@ -344,7 +402,7 @@ class _MyHomePageState extends State<MyHomePage> {
             clipper: SideArrowClip(),
             shadow: Shadow(blurRadius: 6, color: Color.fromRGBO(0, 0, 0, 0.4)),
             child: Container(
-                color: Colors.grey[900],
+                color: Theme.of(context).primaryColor,
                 width: MediaQuery.of(context).size.width,
                 height: MediaQuery.of(context).size.height),
           )),
@@ -360,7 +418,8 @@ class _MyHomePageState extends State<MyHomePage> {
                     padding: const EdgeInsets.all(30.0),
                     shape: CircleBorder(),
                     child: Icon(Icons.print,
-                        color: Colors.grey[900], size: 70)) //Your widget here,
+                        color: Theme.of(context).primaryColor,
+                        size: 70)) //Your widget here,
                 ),
           )),
           Positioned.fill(
@@ -399,34 +458,11 @@ class _MyHomePageState extends State<MyHomePage> {
                                   builder: (context) => MitPrintSettings()),
                             );
                           })))),
+          LoadingScreen(
+            terminalShell: TerminalShell(textLines: widget.terminalLines),
+            currentStep: widget.currentStep,
+            percentProgress: widget.printProgress,
+          ),
         ])));
-    /*Scaffold(
-        backgroundColor: Colors.white,
-        body: Center(
-            child: CustomPaint(
-
-          painter: BackgroundPainter(),
-          child: Container(width: MediaQuery.of(context).size.width, child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisSize: MainAxisSize.max,
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Text("MIT Print"),
-                Column(children: [
-                  Text(widget.filePath),
-                  RaisedButton(onPressed: _pickFile, child: Text("Pick File")),
-                  Padding(
-                      padding: EdgeInsets.only(bottom: 20.0),
-                      child: RaisedButton(
-                          onPressed: _printFile,
-                          color: Colors.white,
-                          padding: const EdgeInsets.all(30.0),
-                          shape: CircleBorder(),
-                          child: Icon(Icons.print,
-                              color: Colors.blue, size: 90)) //Your widget here,
-                      ),
-                ])
-              ]),
-        ))));*/
   }
 }
