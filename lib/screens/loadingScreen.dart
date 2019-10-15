@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:mit_print/terminalShell.dart';
+import 'package:mit_print/widgets/terminalShell.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
 
 class LoadingScreen extends StatefulWidget {
   final TerminalShell terminalShell;
   final String currentStep;
   final double percentProgress;
-  bool showingTerm = false;
+
   LoadingScreen(
       {Key key,
       this.terminalShell,
@@ -20,6 +20,7 @@ class LoadingScreen extends StatefulWidget {
 
 class _LoadingScreenState extends State<LoadingScreen>
     with TickerProviderStateMixin {
+  bool showingTerm = false;
   @override
   Widget build(BuildContext context) {
     return AnimatedSize(
@@ -50,8 +51,8 @@ class _LoadingScreenState extends State<LoadingScreen>
                 FlatButton(
                     onPressed: () {
                       setState(() {
-                        widget.showingTerm = !widget.showingTerm;
-                        print("showingTerm: ${widget.showingTerm}");
+                        showingTerm = !showingTerm;
+                        print("showingTerm: ${showingTerm}");
                       });
                     },
                     child: Text("Details",
@@ -65,7 +66,7 @@ class _LoadingScreenState extends State<LoadingScreen>
                   curve: Curves.easeInOut,
                   child: Container(
                       width: MediaQuery.of(context).size.width,
-                      height: widget.showingTerm
+                      height: showingTerm
                           ? MediaQuery.of(context).size.height * 0.4
                           : 0,
                       color: Colors.black,

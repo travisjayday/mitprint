@@ -164,13 +164,13 @@ packages:
       name: shared_preferences
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "0.4.3"
+    version: "0.5.3+4"
   shared_preferences_settings:
     dependency: "direct main"
     description:
-      name: shared_preferences_settings
-      url: "https://pub.dartlang.org"
-    source: hosted
+      path: "/Volumes/THAWSPACE/Users/tjz/shared_preferences_settings"
+      relative: false
+    source: path
     version: "1.0.0+1"
   sky_engine:
     dependency: transitive

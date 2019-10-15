@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'package:mit_print/loadingScreen.dart';
-import 'package:mit_print/terminalShell.dart';
+import 'package:mit_print/screens/loadingScreen.dart';
+import 'package:mit_print/widgets/terminalShell.dart';
 import 'package:ssh/ssh.dart';
 import 'package:ssh/ssh.dart';
 import 'package:pdf_render/pdf_render.dart';
 import 'package:flutter/services.dart';
 import "password.dart";
 import 'package:shared_preferences/shared_preferences.dart';
-import 'backgroundPainter.dart';
-import 'ClipShadowPath.dart';
-import 'backgroundClipper.dart';
+import 'package:mit_print/graphics/backgroundClipper.dart';
+import 'package:mit_print/graphics/clipShadowPath.dart';
 import 'dart:convert';
 import 'dart:typed_data';
-import 'mitprintSettings.dart';
+import 'package:mit_print/screens/mitprintSettings.dart';
+import 'package:mit_print/widgets/kerbDialog.dart';
 import 'dart:io' as Io;
 import 'dart:convert';
 
@@ -48,9 +48,6 @@ class MyHomePage extends StatefulWidget {
   String printer = "mitprint";
   String auth_method = "1";
 
-  TextEditingController kerbPassTextController = TextEditingController();
-  TextEditingController kerbUserTextController = TextEditingController();
-
   bool remember_pass = false;
 
   var printPreviewImg;
@@ -59,7 +56,7 @@ class MyHomePage extends StatefulWidget {
   int currentPage = 1;
   PdfDocument pdfPreviewDoc;
 
-  List<String> terminalLines;
+  List<String> terminalLines = new List<String>();
   String currentStep = "";
   double printProgress = 0.0;
 
@@ -122,6 +119,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _log(String str, [String type]) {
+    if (str.trim().length == 0) return;
     switch (type) {
       case "app":
         str = "[APP_LOG] " + str;
@@ -168,11 +166,26 @@ class _MyHomePageState extends State<MyHomePage> {
 
     if (widget.kerb_user == "" || widget.kerb_pass == "") {
       print("No user/pass was selected...");
-      var result = await _displayKerbDialog(context);
-      if (result == "cancelled") {
+      var result = await showDialog(
+          context: context,
+          builder: (context) {
+            return new KerbDialog(
+              kerbPass: widget.kerb_pass,
+              kerbUser: widget.kerb_user,
+              rememberPass: widget.remember_pass,
+            );
+          });
+
+      if (result.toString() == "cancelled") {
         print("User action: Cancel");
         return;
-      } else if (widget.kerb_user == "") {
+      }
+
+      widget.kerb_user = result[0];
+      widget.kerb_pass = result[1];
+      widget.remember_pass = result[2];
+
+      if (widget.kerb_user == "") {
         print("Did not specify username!");
         return;
       } else if (widget.kerb_pass == "") {
@@ -258,6 +271,14 @@ class _MyHomePageState extends State<MyHomePage> {
                   printSucc = true;
                   _log("Found success message! Printjob submitted!", "app");
                 }
+                if (res.toString().contains("Permission denid, please try again")) {
+                  _updateProgress("Invalid Athena Credentials!", null, true);
+                  _log("Invalid athena credentials!");
+                }
+                if (res.toString().contains("Connection refused")) {
+                  _updateProgress("Connection refused! Check credentials.", null, true);
+                  _log("Invalid athena credentials!");
+                }
                 // find json updates from logging to console
                 RegExp regExp = new RegExp(r"\{.*\}");
                 if (regExp.hasMatch(res)) {
@@ -313,53 +334,6 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  _displayKerbDialog(BuildContext context) async {
-    return showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: Text('Kerberos Credentials'),
-            content: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextField(
-                controller: widget.kerbUserTextController
-                  ..text = widget.kerb_user,
-                decoration: InputDecoration(hintText: "Kerb username"),
-              ),
-              TextField(
-                controller: widget.kerbPassTextController,
-                decoration: InputDecoration(hintText: "Kerb password"),
-                obscureText: true,
-              ),
-              CheckboxListTile(
-                onChanged: (bool value) {
-                  setState(() {
-                    widget.remember_pass = value;
-                  });
-                },
-                title: Text("Save password"),
-                value: widget.remember_pass,
-              )
-            ]),
-            actions: <Widget>[
-              new FlatButton(
-                child: new Text('CANCEL'),
-                onPressed: () {
-                  Navigator.of(context).pop("cancelled");
-                },
-              ),
-              new FlatButton(
-                child: new Text('CONTINUE'),
-                onPressed: () {
-                  widget.kerb_user = widget.kerbUserTextController.text;
-                  widget.kerb_pass = widget.kerbPassTextController.text;
-                  Navigator.of(context).pop();
-                },
-              )
-            ],
-          );
-        });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -399,7 +373,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   ])),
           IgnorePointer(
               child: ClipShadowPath(
-            clipper: SideArrowClip(),
+            clipper: BackgroundClipper(),
             shadow: Shadow(blurRadius: 6, color: Color.fromRGBO(0, 0, 0, 0.4)),
             child: Container(
                 color: Theme.of(context).primaryColor,
