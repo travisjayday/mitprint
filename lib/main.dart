@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
 import 'screens/mainScreen.dart';
 
 void main() => runApp(MyApp());

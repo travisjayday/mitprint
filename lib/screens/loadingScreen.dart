@@ -52,7 +52,7 @@ class _LoadingScreenState extends State<LoadingScreen>
                     onPressed: () {
                       setState(() {
                         showingTerm = !showingTerm;
-                        print("showingTerm: ${showingTerm}");
+                        print("showingTerm: $showingTerm");
                       });
                     },
                     child: Text("Details",

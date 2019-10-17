@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:mit_print/screens/loadingScreen.dart';
 import 'package:mit_print/widgets/printPreviewView.dart';
 import 'package:mit_print/widgets/terminalShell.dart';
 import 'package:ssh/ssh.dart';
-import 'package:ssh/ssh.dart';
-import 'package:pdf_render/pdf_render.dart';
 import 'package:flutter/services.dart';
 import "../password.dart";
 import 'package:shared_preferences/shared_preferences.dart';
@@ -293,8 +289,8 @@ class _MainScreenState extends State<MainScreen> {
         backgroundColor: Theme.of(context).backgroundColor,
         body: Center(
             child: Stack(children: [
-          Center(
-              child: printPreviewView),
+          Column (mainAxisSize: MainAxisSize.max, mainAxisAlignment: MainAxisAlignment.spaceAround,  children:
+              [ printPreviewView, Container(height: 20, width: 100, color: Colors.blue),]),
           IgnorePointer(
               child: ClipShadowPath(
             clipper: BackgroundClipper(),

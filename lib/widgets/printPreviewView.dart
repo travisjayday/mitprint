@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_swiper/flutter_swiper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
@@ -71,9 +72,9 @@ class _PrintPreviewViewState extends State<PrintPreviewView> {
       }
     } else
       path = "";
-      setState(() {
-        printPreviewIcon = Icon(Icons.add, color: Colors.grey[400], size: 100);
-      });
+    setState(() {
+      printPreviewIcon = Icon(Icons.add, color: Colors.grey[400], size: 100);
+    });
   }
 
   Widget build(BuildContext context) {
@@ -88,7 +89,42 @@ class _PrintPreviewViewState extends State<PrintPreviewView> {
                         "Page ${widget.currentPage.toString()}/${widget.pageCount.toString()}")
                   ])),
      */
-    return Padding(
+    return new
+      Swiper(
+            itemBuilder: (BuildContext context, int index) {
+              return new Container(
+                  color: Colors.transparent,
+                  padding: EdgeInsets.all(10),
+                  child: Material(
+                      color: Colors.white,
+                      elevation: 2,
+                      child: InkWell(
+                          // When the user taps the button, show a snackbar.
+                          onTap: () {
+                            _pickFile();
+                          },
+                          child: AspectRatio(
+                            aspectRatio: 8.5 / 11.0,
+                            child: Container(
+
+                                child: AspectRatio(
+                                    aspectRatio: 8.5 / 11.0,
+                                    child: Stack(children: [
+                                      Center(child: printPreviewIcon),
+                                      Center(child: printPreviewImg)
+                                    ]))),
+                          ))));
+            },
+            itemCount: 10,
+            pagination: new SwiperPagination(
+                builder: const DotSwiperPaginationBuilder(
+                    size: 8.0, activeSize: 8.0, space: 5.0, color: Colors.black12),
+                alignment: Alignment.topCenter),
+            itemWidth: MediaQuery.of(context).size.width * 0.95,
+            itemHeight: (11.0 / 8.5) * MediaQuery.of(context).size.width * 0.95,
+            layout: SwiperLayout.TINDER,
+            loop: false);
+    /*Padding(
         padding: EdgeInsets.fromLTRB(20, 20, 20, 90),
         child: Material(
             color: Colors.white,
@@ -108,6 +144,6 @@ class _PrintPreviewViewState extends State<PrintPreviewView> {
                             Center(child: printPreviewIcon),
                             Center(child: printPreviewImg)
                           ]))),
-                ))));
+                ))));*/
   }
 }
