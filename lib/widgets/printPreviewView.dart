@@ -24,7 +24,7 @@ class PrintPreviewView extends StatefulWidget {
 
 class _PrintPreviewViewState extends State<PrintPreviewView> {
   String filePath;
-  Widget printPreviewImg;
+  List<Widget> printPreviewImgs = null;
   Widget printPreviewIcon = Icon(Icons.add, color: Colors.grey[400], size: 100);
   int pageCount = 1;
   int currentPage = 1;
@@ -32,18 +32,35 @@ class _PrintPreviewViewState extends State<PrintPreviewView> {
 
   _renderPdfPreview(int pageNum) async {
     final PdfDocument doc = await PdfDocument.openFile(filePath);
-    PdfPage page = await doc.getPage(pageNum);
-    PdfPageImage pageImage = await page.render();
+
+    if (printPreviewImgs == null)
+      printPreviewImgs = new List<Widget>();
+    else
+      printPreviewImgs.clear();
+
+    pageCount = doc.pageCount;
+    for (var i = 0; i < doc.pageCount; i++) {
+      PdfPage page = await doc.getPage(i + 1);
+      PdfPageImage pageImage = await page.render();
+      printPreviewImgs
+          .add(_createCard(RawImage(image: pageImage.image), i * 1.0));
+    }
 
     setState(() {
       pageCount = doc.pageCount;
       currentPage = pageNum;
-      printPreviewImg = RawImage(image: pageImage.image);
     });
 
-    //doc.dispose();
-
     pdfPreviewDoc = doc;
+  }
+
+  _renderPdfPage(int i) async {
+    PdfPage page = await pdfPreviewDoc.getPage(i);
+    PdfPageImage pageImage = await page.render();
+
+    setState(() {
+      printPreviewImgs[i] = RawImage(image: pageImage.image);
+    });
   }
 
   void _pickFile() async {
@@ -54,17 +71,24 @@ class _PrintPreviewViewState extends State<PrintPreviewView> {
     print("Selected file: " + path.toString());
     if (path != null) {
       widget.callback(path);
+      if (printPreviewImgs == null) {
+        printPreviewImgs = List<Widget>();
+        printPreviewImgs.add(Container());
+      } else
+        printPreviewImgs?.clear();
       filePath = path;
       if (path.endsWith(".pdf")) {
-        await _renderPdfPreview(1);
+        await _renderPdfPreview(0);
       } else if (path.endsWith(".jpg") ||
           path.endsWith(".png") ||
           path.endsWith(".bmp") ||
           path.endsWith(".jpeg")) {
         setState(() {
-          printPreviewImg = Padding(
-              padding: EdgeInsets.all(30.0),
-              child: Image.file(new Io.File(path)));
+          printPreviewImgs[0] = _createCard(
+              Padding(
+                  padding: EdgeInsets.all(30.0),
+                  child: Image.file(new Io.File(path))),
+              0);
         });
       } else {
         // TODO: Better user feedback
@@ -77,73 +101,39 @@ class _PrintPreviewViewState extends State<PrintPreviewView> {
     });
   }
 
-  Widget build(BuildContext context) {
-    /*
-    Padding(
-              padding: EdgeInsets.fromLTRB(23, 50, 25, 0),
-              child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text("MIT Print"),
-                    Text(
-                        "Page ${widget.currentPage.toString()}/${widget.pageCount.toString()}")
-                  ])),
-     */
-    return new
-      Swiper(
-            itemBuilder: (BuildContext context, int index) {
-              return new Container(
-                  color: Colors.transparent,
-                  padding: EdgeInsets.all(10),
-                  child: Material(
-                      color: Colors.white,
-                      elevation: 2,
-                      child: InkWell(
-                          // When the user taps the button, show a snackbar.
-                          onTap: () {
-                            _pickFile();
-                          },
-                          child: AspectRatio(
-                            aspectRatio: 8.5 / 11.0,
-                            child: Container(
+  /*static Widget
+}*/
+  List<Widget> cardList;
+  // page on top has zero offset
+  Widget _createCard(Widget content, double offset) {
+    return Align(
+      alignment: Alignment(0, -0.4),
+      child: Container(
+          color: Colors.transparent,
+          width: 450,
+          height: 450,
+          alignment: Alignment.center,
+          padding: EdgeInsets.all(10),
+          child: Transform.scale(scale: (offset + 1) / (pageCount + 1), child: Material(
+              color: Colors.white,
+              elevation: 2,
+              child: InkWell(
+                  // When the user taps the button, show a snackbar.
+                  onTap: () {
+                    _pickFile();
+                  },
+                  child: AspectRatio(
+                      aspectRatio: 8.5 / 11.0,
+                      child: Stack(children: [
+                        Center(child: printPreviewIcon),
+                        Positioned.fill(child: content)
+                      ])))))),
+    );
+  }
 
-                                child: AspectRatio(
-                                    aspectRatio: 8.5 / 11.0,
-                                    child: Stack(children: [
-                                      Center(child: printPreviewIcon),
-                                      Center(child: printPreviewImg)
-                                    ]))),
-                          ))));
-            },
-            itemCount: 10,
-            pagination: new SwiperPagination(
-                builder: const DotSwiperPaginationBuilder(
-                    size: 8.0, activeSize: 8.0, space: 5.0, color: Colors.black12),
-                alignment: Alignment.topCenter),
-            itemWidth: MediaQuery.of(context).size.width * 0.95,
-            itemHeight: (11.0 / 8.5) * MediaQuery.of(context).size.width * 0.95,
-            layout: SwiperLayout.TINDER,
-            loop: false);
-    /*Padding(
-        padding: EdgeInsets.fromLTRB(20, 20, 20, 90),
-        child: Material(
-            color: Colors.white,
-            elevation: 2,
-            child: InkWell(
-                // When the user taps the button, show a snackbar.
-                onTap: () {
-                  _pickFile();
-                },
-                child: AspectRatio(
-                  aspectRatio: 8.5 / 11.0,
-                  child: Container(
-                      width: MediaQuery.of(context).size.width * 0.8,
-                      child: AspectRatio(
-                          aspectRatio: 8.5 / 11.0,
-                          child: Stack(children: [
-                            Center(child: printPreviewIcon),
-                            Center(child: printPreviewImg)
-                          ]))),
-                ))));*/
+  Widget build(BuildContext context) {
+    return Stack(
+        alignment: Alignment.center,
+        children: printPreviewImgs?.reversed?.toList() ?? [_createCard(Container(), 0.70)]);
   }
 }

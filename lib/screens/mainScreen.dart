@@ -1,19 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
+import 'package:mit_print/pharos/athenaSSH.dart';
 import 'package:mit_print/screens/loadingScreen.dart';
 import 'package:mit_print/widgets/printPreviewView.dart';
 import 'package:mit_print/widgets/terminalShell.dart';
-import 'package:ssh/ssh.dart';
 import 'package:flutter/services.dart';
 import "../password.dart";
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mit_print/graphics/backgroundClipper.dart';
 import 'package:mit_print/graphics/clipShadowPath.dart';
-import 'dart:convert';
-import 'dart:typed_data';
 import 'package:mit_print/screens/mitprintSettings.dart';
 import 'package:mit_print/widgets/kerbDialog.dart';
-import 'dart:io' as Io;
-import 'dart:convert';
 
 class MainScreen extends StatefulWidget {
   MainScreen({Key key}) : super(key: key);
@@ -40,8 +37,6 @@ class _MainScreenState extends State<MainScreen> {
   int _counter = 0;
   static const platform = const MethodChannel('flutter.native/helper');
   var prefs = null;
-  double stepNum = 0;
-  double totalSteps = 10;
 
   _diskReadString(key) async => prefs?.getString(key);
   _diskReadBool(key) async => prefs?.getBool(key);
@@ -70,18 +65,14 @@ class _MainScreenState extends State<MainScreen> {
     widget.terminalLines.add(str.trimRight());
   }
 
-  void _updateProgress(String step, [bool fullstep, bool done]) {
-    if (fullstep == null || fullstep == false) stepNum++;
-    if (done != null && done == true) stepNum = totalSteps;
+  void _updateProgress(String desc, double stepNum, double totalSteps) {
     setState(() {
-      widget.currentStep = step;
+      widget.currentStep = desc;
       widget.printProgress = stepNum / totalSteps;
     });
   }
 
   void _printFile() async {
-    stepNum = 0.0;
-    totalSteps = 17.0;
     prefs = await SharedPreferences.getInstance();
     widget.terminalLines = new List<String>();
 
@@ -133,144 +124,10 @@ class _MainScreenState extends State<MainScreen> {
     _log(
         "Attempting to start printjob for user: ${widget.kerb_user}...", "app");
 
-    var client = new SSHClient(
-        host: "mitprint.xvm.mit.edu",
-        port: 22,
-        username: widget.user,
-        passwordOrKey: widget.password);
-
-    try {
-      // STEP 1 -- Create SSH Session -----------
-      _updateProgress("Connecting with SSH");
-      _log("Attempting to create SSH session with ${client.host}...", "app");
-      String result = await client.connect();
-      _log(result, "result");
-      // END STEP 1 -----------------------------
-
-      if (result == "session_connected") {
-        var dir = "${widget.kerb_user}_printFiles";
-
-        // STEP 2 -- Remove Old Directories -----
-        _updateProgress("Removing old files...");
-        _log("Removing pre-existing directory...", "app");
-        result = await client.execute("rm -rf " + dir);
-        _log(result, "result");
-        // END STEP 2 ---------------------------
-
-        // STEP 3 -- Create SFTP Session --------
-        _updateProgress("Connecting to SFTP");
-        _log("Attempting to connect to SFTP...", "app");
-        result = await client.connectSFTP();
-        _log(result, "result");
-        // END STEP 3 ---------------------------
-
-        if (result == "sftp_connected") {
-          // STEP 4 -- Upload PrintJob File -----
-          _updateProgress("Uploading user files...", false);
-          _log("Creating temporary directory...", "app");
-          result = await client.sftpMkdir(dir);
-          _log(result, "result");
-          _log("Uploading print files to " + dir, "app");
-          double step = stepNum;
-          result = await client.sftpUpload(
-            path: widget.filePath,
-            toPath: dir,
-            callback: (progress) {
-              _log(progress.toString(), "server");
-              stepNum = step + (progress / 100.0) * 2; // takes 2 steps
-              _updateProgress("Uploading user files (${progress}%)...");
-            },
-          );
-          _log(result, "result");
-          _updateProgress("Disconnecting from SFTP...");
-          _log("Disconnecting from SFTP...", "app");
-          client.disconnectSFTP();
-          // END STEP 4 -------------------------
-
-          // STEP 5 -- Connecting to Athena -----
-          _updateProgress("Connecting to Athena...");
-          _log("Re-connecting to client...", "app");
-          result = await client.connect();
-          _log(result, "result");
-
-          bool printSucc = false;
-          result = await client.startShell(
-              ptyType: "xterm",
-              callback: (dynamic res) {
-                _log(res, "server"); // read from shell
-                if (res.toString().contains("request id is")) {
-                  printSucc = true;
-                  _log("Found success message! Printjob submitted!", "app");
-                }
-                print("res is: " + res.toString());
-                if (res
-                    .toString()
-                    .contains("Permission denied, please try again")) {
-                  _updateProgress("Invalid Athena Credentials!", null, true);
-                  _log("Invalid athena credentials! Clearing username / pass");
-                  _diskWriteString("kerb_user", "");
-                  _diskWriteString("kerb_pass", "");
-                }
-                if (res.toString().contains("Connection refused")) {
-                  _updateProgress(
-                      "Connection refused! Check credentials.", null, true);
-                  _log("Invalid athena credentials!");
-                }
-                // find json updates from logging to console
-                RegExp regExp = new RegExp(r"\{.*\}");
-                if (regExp.hasMatch(res)) {
-                  String response = regExp.allMatches(res).first.group(0);
-                  var status = json.decode(response);
-                  _updateProgress(status["desc"]);
-                  // check if status step is 6, the last step in printjob script
-                  if (status["step"] == "6") {
-                    if (printSucc) {
-                      _updateProgress(
-                          "Printjob Succesfully Submitted!", null, true);
-                      _log("Script terminates successfully...", "app");
-                    } else {
-                      _updateProgress("Something Went Wrong", null, true);
-                      _log("Script terminates unsuccessfully...", "app");
-                    }
-                    _log("Disconnecting from SSH server", "app");
-                    client.disconnect();
-                  }
-                }
-              });
-          // END Step 5 -------------------------
-
-          // STEP 6 -- Execute ./printJob Command on mitprint.xvm.mit.edu
-          _updateProgress("Starting printjob...");
-
-          // Note: the script has 6 sub-steps
-          String cmd = "expect /home/${SSH_USER}/printJob.sh " +
-              "${widget.kerb_user} " +
-              "${widget.kerb_pass} " +
-              "${widget.auth_method} " +
-              "${dir} " +
-              "${widget.printer}";
-          _log("Running printJob command on server...", "app");
-          result = await client.writeToShell(cmd + "\n");
-          _log(result, "result");
-          // END STEP 6
-
-          new Future.delayed(
-            const Duration(seconds: 60),
-            () async {
-              _log("Timeout Disconnecting from SSH session...", "app");
-              client.disconnect();
-            },
-          );
-        }
-      } else {
-        _log("No SSH session is connected... Terminating...", "warning");
-      }
-    } on PlatformException catch (e) {
-      _log('Fatal: ${e.code}\n[Error] Message: ${e.message}', "error");
-      _updateProgress("Something went wrong...", null, true);
-    }
+    AthenaSSH()
+      ..submitPrintjob(widget.kerb_user, widget.kerb_pass, widget.auth_method,
+          widget.filePath, widget.printer, _updateProgress, _log);
   }
-
 
   PrintPreviewView printPreviewView;
 
@@ -287,10 +144,9 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
         backgroundColor: Theme.of(context).backgroundColor,
-        body: Center(
-            child: Stack(children: [
-          Column (mainAxisSize: MainAxisSize.max, mainAxisAlignment: MainAxisAlignment.spaceAround,  children:
-              [ printPreviewView, Container(height: 20, width: 100, color: Colors.blue),]),
+        body:
+          Stack(children: [
+          Positioned.fill(child: printPreviewView),
           IgnorePointer(
               child: ClipShadowPath(
             clipper: BackgroundClipper(),
@@ -318,45 +174,39 @@ class _MainScreenState extends State<MainScreen> {
           )),
           Positioned.fill(
               child: Align(
-                  alignment: Alignment.bottomLeft,
+                  alignment: Alignment.bottomCenter,
                   child: Padding(
-                      padding: EdgeInsets.only(bottom: 14.0),
-                      child: IconButton(
-                          icon: Icon(
-                            Icons.more_vert,
-                            size: 40,
-                            color: Colors.white,
-                          ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => MitPrintSettings()),
-                            );
-                          })))),
-          Positioned.fill(
-              child: Align(
-                  alignment: Alignment.bottomLeft,
-                  child: Padding(
-                      padding: EdgeInsets.only(bottom: 14.0),
-                      child: IconButton(
-                          icon: Icon(
-                            Icons.more_vert,
-                            size: 40,
-                            color: Colors.white,
-                          ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => MitPrintSettings()),
-                            );
-                          })))),
+                      padding: EdgeInsets.fromLTRB(0, 0, 20.0, 14),
+                      child: Row(
+                          mainAxisSize: MainAxisSize.max,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            IconButton(
+                                icon: Icon(
+                                  Icons.more_vert,
+                                  size: 40,
+                                  color: Colors.white,
+                                ),
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (context) =>
+                                            MitPrintSettings()),
+                                  );
+                                }),
+                            Container(
+                                width: 40,
+                                height: 40,
+                                child: SvgPicture.asset(
+                                  "assets/rgb2.svg",
+                                ))
+                          ])))),
           LoadingScreen(
             terminalShell: TerminalShell(textLines: widget.terminalLines),
             currentStep: widget.currentStep,
             percentProgress: widget.printProgress,
           ),
-        ])));
+        ]));
   }
 }
