@@ -4,10 +4,10 @@ class BackgroundClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
     final Path path = Path();
-    var oH = 100;
-    var oW = size.width * 1.3;
-    var buttonRadius = 85.0;
-    var buttonPadding = 7.0;
+    var oH = 60;
+    var oW = size.width * 10;
+    var buttonRadius = 75.0;
+    var buttonPadding = 10.0;
     num degToRad(num deg) => deg * (3.1415926535897932 / 180.0);
     path.arcTo(Rect.fromLTRB(
         -(oW - size.width) / 2, size.height - oH,

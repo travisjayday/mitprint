@@ -43,6 +43,17 @@ class _MainScreenState extends State<MainScreen> {
   _diskWriteString(key, value) async => prefs?.setString(key, value);
   _diskWriteBool(key, value) async => prefs?.setBool(key, value);
 
+  void _togglePrinter() {
+    setState(() {
+      if (widget.printer == "mitprint") {
+        widget.printer = "mitprinter-color";
+      } else {
+        widget.printer = "mitprint";
+      }
+    });
+    printPreviewView.setGrayscale(widget.printer == "mitprint");
+  }
+
   void _log(String str, [String type]) {
     if (str.trim().length == 0) return;
     switch (type) {
@@ -137,7 +148,7 @@ class _MainScreenState extends State<MainScreen> {
     print("Inititing state");
     printPreviewView = PrintPreviewView(callback: (str) {
       widget.filePath = str;
-    });
+    }, mainScreen: this.widget, grayscale: widget.printer == "mitprint");
   }
 
   @override
@@ -150,7 +161,7 @@ class _MainScreenState extends State<MainScreen> {
           IgnorePointer(
               child: ClipShadowPath(
             clipper: BackgroundClipper(),
-            shadow: Shadow(blurRadius: 6, color: Color.fromRGBO(0, 0, 0, 0.4)),
+            shadow: Shadow(blurRadius: 4, color: Color.fromRGBO(0, 0, 0, 0.6)),
             child: Container(
                 color: Theme.of(context).primaryColor,
                 width: MediaQuery.of(context).size.width,
@@ -160,7 +171,7 @@ class _MainScreenState extends State<MainScreen> {
               child: Align(
             alignment: Alignment.bottomCenter,
             child: Padding(
-                padding: EdgeInsets.only(bottom: 20.0),
+                padding: EdgeInsets.only(bottom: 15.0),
                 child: RaisedButton(
                     onPressed: _printFile,
                     color: Colors.white,
@@ -176,7 +187,7 @@ class _MainScreenState extends State<MainScreen> {
               child: Align(
                   alignment: Alignment.bottomCenter,
                   child: Padding(
-                      padding: EdgeInsets.fromLTRB(0, 0, 20.0, 14),
+                      padding: EdgeInsets.fromLTRB(0, 0, 20.0, 10),
                       child: Row(
                           mainAxisSize: MainAxisSize.max,
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -195,12 +206,10 @@ class _MainScreenState extends State<MainScreen> {
                                             MitPrintSettings()),
                                   );
                                 }),
-                            Container(
-                                width: 40,
-                                height: 40,
-                                child: SvgPicture.asset(
-                                  "assets/rgb2.svg",
-                                ))
+                            IconButton(
+                              icon: Icon(widget.printer == "mitprint"? Icons.invert_colors_off : Icons.invert_colors, size: 35, color: Colors.white),
+                              onPressed: (){_togglePrinter(); },
+                            )
                           ])))),
           LoadingScreen(
             terminalShell: TerminalShell(textLines: widget.terminalLines),
