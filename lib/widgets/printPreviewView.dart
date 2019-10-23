@@ -23,7 +23,7 @@ class PrintPreviewView extends StatefulWidget {
 
   void setGrayscale(gray) {
     grayscale = gray;
-    state.setState((){});
+    state.setState(() {});
   }
 
   @override
@@ -44,13 +44,11 @@ class _PrintPreviewViewState extends State<PrintPreviewView>
   List<Widget> printPreviewImgs = null;
   List<PdfPageImage> previewImgs = null;
   // scale, translate x, translate y
-  List<CardTransform> printPreviewImgsTransform = [
-    CardTransform(translate: Offset(0.0, 0.0), elevation: 1.0, scale: 1.0)
-  ];
+  List<CardTransform> printPreviewImgsTransform;
 
   Widget printPreviewIcon = Icon(Icons.add, color: Colors.grey[400], size: 100);
-  int pageCount = 1;
-  int currentPage = 1;
+  int pageCount = 0;
+  int currentPage = 0;
   PdfDocument pdfPreviewDoc;
   double translate = 0.0;
   int topPage = 0;
@@ -157,28 +155,23 @@ class _PrintPreviewViewState extends State<PrintPreviewView>
 
   // page on top has zero offset
   Widget _createCard(Widget content, int pageNum) {
-    print("EHELE: " +
-        pageNum.toString() +
-        printPreviewImgsTransform[pageNum].translate.toString());
     return ScaleTransition(
         scale: Tween(begin: printPreviewImgsTransform[pageNum].scale, end: 1.3)
-            .animate(printPreviewImgsTransform[pageNum].animScale),
+            .animate(printPreviewImgsTransform[pageNum]?.animScale),
         child: SlideTransition(
             position: Tween<Offset>(
                     begin: printPreviewImgsTransform[pageNum].translate,
                     end: Offset(0.9, 0))
                 .animate(CurvedAnimation(
-                    parent: printPreviewImgsTransform[pageNum].animScale,
+                    parent: printPreviewImgsTransform[pageNum]?.animScale,
                     curve: Curves.easeOutCirc,
                     reverseCurve: Curves.easeInCirc)),
             child: FadeTransition(
-              opacity: Tween(begin: 1.0, end: 0.0).animate(CurvedAnimation(
-                  parent: printPreviewImgsTransform[pageNum].animScale,
+              opacity: Tween(begin: 1.0, end: 1.0).animate(CurvedAnimation(
+                  parent: printPreviewImgsTransform[pageNum]?.animScale,
                   curve: Curves.easeOutCirc,
                   reverseCurve: Curves.linear)),
-              child: Align(
-                  alignment: Alignment(0, -0.65),
-                  child: GestureDetector(
+              child: GestureDetector(
                       onPanUpdate: (details) {
                         if (details.delta.dx > 0) {
                           // swiping in right direction
@@ -186,8 +179,8 @@ class _PrintPreviewViewState extends State<PrintPreviewView>
                             print("setting offset for: " + pageNum.toString());
                             if (pageNum == topPage && topPage < pageCount - 1) {
                               printPreviewImgsTransform[topPage]
-                                  .animScale
-                                  .forward();
+                                  ?.animScale
+                                  ?.forward();
                               topPage++;
                             }
                           });
@@ -197,8 +190,8 @@ class _PrintPreviewViewState extends State<PrintPreviewView>
                             print("setting offset for: " + pageNum.toString());
                             if (pageNum == topPage && topPage > 0) topPage--;
                             printPreviewImgsTransform[topPage]
-                                .animScale
-                                .reverse();
+                                ?.animScale
+                                ?.reverse();
                           });
                         }
                       },
@@ -219,7 +212,7 @@ class _PrintPreviewViewState extends State<PrintPreviewView>
                                       .animate(CurvedAnimation(
                                           parent:
                                               printPreviewImgsTransform[pageNum]
-                                                  .animScale,
+                                                  ?.animScale,
                                           curve: Curves.easeOutCirc,
                                           reverseCurve: Curves.easeInCirc)
                                         ..addListener(() {
@@ -238,14 +231,26 @@ class _PrintPreviewViewState extends State<PrintPreviewView>
                                         Center(child: printPreviewIcon),
                                         Positioned.fill(child: content)
                                       ]))))))),
-            )));
+            ));
+  }
+
+  @override
+  initState() {
+    super.initState();
+    printPreviewImgsTransform = [
+      CardTransform(
+          translate: Offset(0.0, 0.0),
+          elevation: 1.0,
+          scale: 1.0,
+          animScale: AnimationController(vsync: this))
+    ];
   }
 
   Widget build(BuildContext context) {
     return Stack(
         alignment: Alignment.center,
-        children: _buildPreviewImgs()
-            ?.reversed
-            ?.toList()); // [_createCard(Container(), 0)]);
+        children: pageCount != 0
+            ? _buildPreviewImgs()?.reversed?.toList()
+            : [_createCard(Container(), 0)]);
   }
 }

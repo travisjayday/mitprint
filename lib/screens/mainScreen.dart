@@ -146,18 +146,20 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     print("Inititing state");
-    printPreviewView = PrintPreviewView(callback: (str) {
-      widget.filePath = str;
-    }, mainScreen: this.widget, grayscale: widget.printer == "mitprint");
+    printPreviewView = PrintPreviewView(
+        callback: (str) {
+          widget.filePath = str;
+        },
+        mainScreen: this.widget,
+        grayscale: widget.printer == "mitprint");
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
         backgroundColor: Theme.of(context).backgroundColor,
-        body:
-          Stack(children: [
-          Positioned.fill(child: printPreviewView),
+        body: Stack(children: [
+          Positioned.fill(bottom: 125, top: 0.0, child: Align(alignment: Alignment.center, child: printPreviewView)),
           IgnorePointer(
               child: ClipShadowPath(
             clipper: BackgroundClipper(),
@@ -168,11 +170,10 @@ class _MainScreenState extends State<MainScreen> {
                 height: MediaQuery.of(context).size.height),
           )),
           Positioned.fill(
+            bottom: 15.0,
               child: Align(
             alignment: Alignment.bottomCenter,
-            child: Padding(
-                padding: EdgeInsets.only(bottom: 15.0),
-                child: RaisedButton(
+            child: RaisedButton(
                     onPressed: _printFile,
                     color: Colors.white,
                     elevation: 10,
@@ -182,12 +183,13 @@ class _MainScreenState extends State<MainScreen> {
                         color: Theme.of(context).primaryColor,
                         size: 70)) //Your widget here,
                 ),
-          )),
+          ),
           Positioned.fill(
+            left: MediaQuery.of(context).size.width * 0.15,
+              right: MediaQuery.of(context).size.width * 0.15 + 10.0,
+              bottom: 10.0,
               child: Align(
                   alignment: Alignment.bottomCenter,
-                  child: Padding(
-                      padding: EdgeInsets.fromLTRB(0, 0, 20.0, 10),
                       child: Row(
                           mainAxisSize: MainAxisSize.max,
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -207,10 +209,17 @@ class _MainScreenState extends State<MainScreen> {
                                   );
                                 }),
                             IconButton(
-                              icon: Icon(widget.printer == "mitprint"? Icons.invert_colors_off : Icons.invert_colors, size: 35, color: Colors.white),
-                              onPressed: (){_togglePrinter(); },
+                              icon: Icon(
+                                  widget.printer == "mitprint"
+                                      ? Icons.invert_colors_off
+                                      : Icons.invert_colors,
+                                  size: 35,
+                                  color: Colors.white),
+                              onPressed: () {
+                                _togglePrinter();
+                              },
                             )
-                          ])))),
+                          ]))),
           LoadingScreen(
             terminalShell: TerminalShell(textLines: widget.terminalLines),
             currentStep: widget.currentStep,
