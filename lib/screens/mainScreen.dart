@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:mit_print/pharos/athenaSSH.dart';
 import 'package:mit_print/screens/loadingScreen.dart';
 import 'package:mit_print/widgets/printPreviewView.dart';
@@ -34,7 +33,6 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _counter = 0;
   static const platform = const MethodChannel('flutter.native/helper');
   var prefs = null;
 
@@ -51,7 +49,6 @@ class _MainScreenState extends State<MainScreen> {
         widget.printer = "mitprint";
       }
     });
-    printPreviewView.setGrayscale(widget.printer == "mitprint");
   }
 
   void _log(String str, [String type]) {
@@ -146,20 +143,60 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     print("Inititing state");
+    () async {
+      widget.kerb_user = await _diskReadString("kerb_user");
+    };
     printPreviewView = PrintPreviewView(
         callback: (str) {
           widget.filePath = str;
         },
-        mainScreen: this.widget,
-        grayscale: widget.printer == "mitprint");
+        mainScreen: this.widget);
+  }
+
+  _buildSummaryText() {
+    List<Text> texts = List<Text>();
+    Text _txtFmt (String s) {
+      return Text(s, style: TextStyle(color: Colors.white, ));
+    }
+    texts.add(_txtFmt(widget.printer));
+
+    if (widget.kerb_user != "")
+    texts.add(_txtFmt("Tj"));
+    texts.add(_txtFmt("page: 4/17"));
+    texts.add(_txtFmt(widget.printer == "mitprint"? "black/white" : "color"));
+    return texts;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+        appBar: AppBar(
+            title: Text("Pharos Print Preview"),
+            bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(28.0),
+                child: Container(
+                  height: 28,
+                    color: Colors.green,
+                    child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: _buildSummaryText())))),
         backgroundColor: Theme.of(context).backgroundColor,
         body: Stack(children: [
-          Positioned.fill(bottom: 125, top: 0.0, child: Align(alignment: Alignment.center, child: printPreviewView)),
+          Positioned.fill(
+              bottom: 125,
+              top: 0.0,
+              child: Align(
+                  alignment: Alignment.center,
+                  child: Container(
+                    foregroundDecoration: BoxDecoration(
+                      color: widget.printer == "mitprint" ? Colors.grey : null,
+                      backgroundBlendMode: widget.printer == "mitprint"
+                          ? BlendMode.saturation
+                          : null,
+                    ),
+                    child: printPreviewView,
+                  ))),
           IgnorePointer(
               child: ClipShadowPath(
             clipper: BackgroundClipper(),
@@ -171,9 +208,9 @@ class _MainScreenState extends State<MainScreen> {
           )),
           Positioned.fill(
             bottom: 15.0,
-              child: Align(
-            alignment: Alignment.bottomCenter,
-            child: RaisedButton(
+            child: Align(
+                alignment: Alignment.bottomCenter,
+                child: RaisedButton(
                     onPressed: _printFile,
                     color: Colors.white,
                     elevation: 10,
@@ -185,41 +222,40 @@ class _MainScreenState extends State<MainScreen> {
                 ),
           ),
           Positioned.fill(
-            left: MediaQuery.of(context).size.width * 0.15,
+              left: MediaQuery.of(context).size.width * 0.15,
               right: MediaQuery.of(context).size.width * 0.15 + 10.0,
               bottom: 10.0,
               child: Align(
                   alignment: Alignment.bottomCenter,
-                      child: Row(
-                          mainAxisSize: MainAxisSize.max,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            IconButton(
-                                icon: Icon(
-                                  Icons.more_vert,
-                                  size: 40,
-                                  color: Colors.white,
-                                ),
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (context) =>
-                                            MitPrintSettings()),
-                                  );
-                                }),
-                            IconButton(
-                              icon: Icon(
-                                  widget.printer == "mitprint"
-                                      ? Icons.invert_colors_off
-                                      : Icons.invert_colors,
-                                  size: 35,
-                                  color: Colors.white),
-                              onPressed: () {
-                                _togglePrinter();
-                              },
-                            )
-                          ]))),
+                  child: Row(
+                      mainAxisSize: MainAxisSize.max,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        IconButton(
+                            icon: Icon(
+                              Icons.more_vert,
+                              size: 40,
+                              color: Colors.white,
+                            ),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (context) => MitPrintSettings()),
+                              );
+                            }),
+                        IconButton(
+                          icon: Icon(
+                              widget.printer == "mitprint"
+                                  ? Icons.invert_colors_off
+                                  : Icons.invert_colors,
+                              size: 35,
+                              color: Colors.white),
+                          onPressed: () {
+                            _togglePrinter();
+                          },
+                        )
+                      ]))),
           LoadingScreen(
             terminalShell: TerminalShell(textLines: widget.terminalLines),
             currentStep: widget.currentStep,
