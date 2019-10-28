@@ -8,12 +8,18 @@ import 'dart:math';
 
 class PrintPreviewView extends StatefulWidget {
   Function(String) callback;
+  bool grayscale = true;
   final _PrintPreviewViewState state = _PrintPreviewViewState();
   MainScreen mainScreen;
-  PrintPreviewView({this.mainScreen, this.callback});
+  PrintPreviewView({this.mainScreen, this.callback, this.grayscale});
 
   void pickFile() async {
     state._pickFile();
+  }
+
+  void setGrayscale(gray) {
+    grayscale = gray;
+    state.setState(() {});
   }
 
   @override
@@ -94,15 +100,17 @@ class _PrintPreviewViewState extends State<PrintPreviewView>
                                  e.g. first page in pdf has index pageCount -1*/
     setState(() {}); // trigger rebuild to display new pdf
     doc.dispose(); // dispose of pdf in memory
-
   }
 
   /// Prompts user to pick a file, then starts the rendering process
   void _pickFile() async {
+    if (pickingFile) return;
+    pickingFile = true;
     setState(() {
       printPreviewIcon = SpinKitRing(color: Colors.grey[300], size: 110);
     });
     var path = await FilePicker.getFilePath(type: FileType.ANY);
+    pickingFile = false;
     print("Selected file: " + path.toString());
     if (path != null) {
       widget.callback(path);
@@ -127,10 +135,10 @@ class _PrintPreviewViewState extends State<PrintPreviewView>
           pageCount = 1;
           topPage = 0;
           rawImgs.add(
-              Padding(
-                  padding: EdgeInsets.all(30.0),
-                  child: Image.file(new Io.File(path))),
-              );
+            Padding(
+                padding: EdgeInsets.all(30.0),
+                child: Image.file(new Io.File(path))),
+          );
         });
       } else {
         // TODO: Better user feedback
@@ -145,12 +153,18 @@ class _PrintPreviewViewState extends State<PrintPreviewView>
 
   /// Builds & returns the list of previewWidgets
   _buildPreviewImgs() {
-    print("PREVIEW  BUILT");
     if (previewWidgets != null) previewWidgets.clear();
     endCount =
         topPage - maxPageBuffer + 1 > 0 ? topPage - maxPageBuffer + 1 : 0;
     for (int i = endCount; i < pageCount; i++) {
-      previewWidgets.add(_createCard(rawImgs[i], i));
+      previewWidgets.add(_createCard(
+          Container(
+              foregroundDecoration: BoxDecoration(
+                  color: widget.grayscale ? Colors.grey : null,
+                  backgroundBlendMode:
+                      widget.grayscale ? BlendMode.saturation : null),
+              child: rawImgs[i]),
+          i));
     }
     return previewWidgets;
   }

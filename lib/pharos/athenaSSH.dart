@@ -11,7 +11,7 @@ class AthenaSSH {
       String auth_method,
       String filePath,
       String printer,
-      Function(String, double, double, [bool fullstep, bool done])
+      Function(String, double, double)
           _updateProgress,
       Function _log) async {
     double stepNum = 0.0;

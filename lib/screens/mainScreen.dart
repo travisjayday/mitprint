@@ -14,6 +14,13 @@ import 'package:mit_print/widgets/kerbDialog.dart';
 class MainScreen extends StatefulWidget {
   MainScreen({Key key}) : super(key: key);
 
+  @override
+  _MainScreenState createState() => _MainScreenState();
+}
+
+class _MainScreenState extends State<MainScreen> {
+  static const platform = const MethodChannel('flutter.native/helper');
+  var prefs = null;
   String filePath = "";
   String user = SSH_USER;
   String password = SSH_PASS;
@@ -28,14 +35,6 @@ class MainScreen extends StatefulWidget {
   String currentStep = "";
   double printProgress = 0.0;
 
-  @override
-  _MainScreenState createState() => _MainScreenState();
-}
-
-class _MainScreenState extends State<MainScreen> {
-  static const platform = const MethodChannel('flutter.native/helper');
-  var prefs = null;
-
   _diskReadString(key) async => prefs?.getString(key);
   _diskReadBool(key) async => prefs?.getBool(key);
   _diskWriteString(key, value) async => prefs?.setString(key, value);
@@ -43,11 +42,12 @@ class _MainScreenState extends State<MainScreen> {
 
   void _togglePrinter() {
     setState(() {
-      if (widget.printer == "mitprint") {
-        widget.printer = "mitprinter-color";
+      if (printer == "mitprint") {
+        printer = "mitprinter-color";
       } else {
-        widget.printer = "mitprint";
+        printer = "mitprint";
       }
+      printPreviewView.setGrayscale(printer == "mitprint");
     });
   }
 
@@ -70,39 +70,39 @@ class _MainScreenState extends State<MainScreen> {
         str = "[ERROR] " + str;
     }
     print(str);
-    widget.terminalLines.add(str.trimRight());
+    terminalLines.add(str.trimRight());
   }
 
   void _updateProgress(String desc, double stepNum, double totalSteps) {
     setState(() {
-      widget.currentStep = desc;
-      widget.printProgress = stepNum / totalSteps;
+      currentStep = desc;
+      printProgress = stepNum / totalSteps;
     });
   }
 
   void _printFile() async {
     prefs = await SharedPreferences.getInstance();
-    widget.terminalLines = new List<String>();
+    terminalLines = new List<String>();
 
-    if (widget.filePath == "") {
+    if (filePath == "") {
       print("No file was selected, picking file...");
       return await printPreviewView.pickFile();
     }
 
-    widget.kerb_user = (await _diskReadString("kerb_user")) ?? "";
-    widget.kerb_pass = (await _diskReadString("kerb_pass")) ?? "";
-    widget.remember_pass = (await _diskReadBool("remember_pass")) ?? false;
-    widget.auth_method = (await _diskReadString("auth_method")) ?? "1";
+    kerb_user = (await _diskReadString("kerb_user")) ?? "";
+    kerb_pass = (await _diskReadString("kerb_pass")) ?? "";
+    remember_pass = (await _diskReadBool("remember_pass")) ?? false;
+    auth_method = (await _diskReadString("auth_method")) ?? "1";
 
-    if (widget.kerb_user == "" || widget.kerb_pass == "") {
+    if (kerb_user == "" || kerb_pass == "") {
       print("No user/pass was selected...");
       var result = await showDialog(
           context: context,
           builder: (context) {
             return new KerbDialog(
-              kerbPass: widget.kerb_pass,
-              kerbUser: widget.kerb_user,
-              rememberPass: widget.remember_pass,
+              kerbPass: kerb_pass,
+              kerbUser: kerb_user,
+              rememberPass: remember_pass,
             );
           });
 
@@ -111,59 +111,67 @@ class _MainScreenState extends State<MainScreen> {
         return;
       }
 
-      widget.kerb_user = result[0];
-      widget.kerb_pass = result[1];
-      widget.remember_pass = result[2];
+      kerb_user = result[0];
+      kerb_pass = result[1];
+      remember_pass = result[2];
 
-      if (widget.kerb_user == "") {
+      if (kerb_user == "") {
         print("Did not specify username!");
         return;
-      } else if (widget.kerb_pass == "") {
+      } else if (kerb_pass == "") {
         print("Did not specify password");
         return;
       } else {
-        await _diskWriteBool("remember_pass", widget.remember_pass);
-        await _diskWriteString("kerb_user", widget.kerb_user);
-        if (widget.remember_pass)
-          await _diskWriteString("kerb_pass", widget.kerb_pass);
+        await _diskWriteBool("remember_pass", remember_pass);
+        await _diskWriteString("kerb_user", kerb_user);
+        if (remember_pass) await _diskWriteString("kerb_pass", kerb_pass);
       }
     }
 
-    _log(
-        "Attempting to start printjob for user: ${widget.kerb_user}...", "app");
+    _log("Attempting to start printjob for user: ${kerb_user}...", "app");
 
     AthenaSSH()
-      ..submitPrintjob(widget.kerb_user, widget.kerb_pass, widget.auth_method,
-          widget.filePath, widget.printer, _updateProgress, _log);
+      ..submitPrintjob(kerb_user, kerb_pass, auth_method, filePath, printer,
+          _updateProgress, _log);
   }
 
   PrintPreviewView printPreviewView;
+
+  Future<Null> loadSharedPrefs() async {
+    prefs = await SharedPreferences.getInstance();
+    print("loading shared prefs");
+    setState(() {
+      kerb_user = prefs.getString("kerb_user") ?? "";
+    });
+  }
 
   @override
   void initState() {
     super.initState();
     print("Inititing state");
-    () async {
-      widget.kerb_user = await _diskReadString("kerb_user");
-    };
+    loadSharedPrefs();
     printPreviewView = PrintPreviewView(
-        callback: (str) {
-          widget.filePath = str;
-        },
-        mainScreen: this.widget);
+      callback: (str) {
+        filePath = str;
+      },
+      mainScreen: this.widget,
+      grayscale: printer == "mitprint",
+    );
   }
 
   _buildSummaryText() {
     List<Text> texts = List<Text>();
-    Text _txtFmt (String s) {
-      return Text(s, style: TextStyle(color: Colors.white, ));
+    Text _txtFmt(String s) {
+      return Text(s,
+          style: TextStyle(
+            color: Colors.white,
+          ));
     }
-    texts.add(_txtFmt(widget.printer));
 
-    if (widget.kerb_user != "")
-    texts.add(_txtFmt("Tj"));
+    texts.add(_txtFmt(printer));
+    if (kerb_user != "") texts.add(_txtFmt(kerb_user));
     texts.add(_txtFmt("page: 4/17"));
-    texts.add(_txtFmt(widget.printer == "mitprint"? "black/white" : "color"));
+    texts.add(_txtFmt(printer == "mitprint" ? "black/white" : "color"));
     return texts;
   }
 
@@ -171,12 +179,12 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
-            title: Text("Pharos Print Preview"),
+            title: Text("MIT Print Mobile"),
             bottom: PreferredSize(
-                preferredSize: const Size.fromHeight(28.0),
+                preferredSize: const Size.fromHeight(30.0),
                 child: Container(
-                  height: 28,
-                    color: Colors.green,
+                    height: 30,
+                    color: Colors.blue,
                     child: Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -187,16 +195,9 @@ class _MainScreenState extends State<MainScreen> {
               bottom: 125,
               top: 0.0,
               child: Align(
-                  alignment: Alignment.center,
-                  child: Container(
-                    foregroundDecoration: BoxDecoration(
-                      color: widget.printer == "mitprint" ? Colors.grey : null,
-                      backgroundBlendMode: widget.printer == "mitprint"
-                          ? BlendMode.saturation
-                          : null,
-                    ),
-                    child: printPreviewView,
-                  ))),
+                alignment: Alignment.center,
+                child: printPreviewView,
+              )),
           IgnorePointer(
               child: ClipShadowPath(
             clipper: BackgroundClipper(),
@@ -246,7 +247,7 @@ class _MainScreenState extends State<MainScreen> {
                             }),
                         IconButton(
                           icon: Icon(
-                              widget.printer == "mitprint"
+                              printer == "mitprint"
                                   ? Icons.invert_colors_off
                                   : Icons.invert_colors,
                               size: 35,
@@ -257,9 +258,13 @@ class _MainScreenState extends State<MainScreen> {
                         )
                       ]))),
           LoadingScreen(
-            terminalShell: TerminalShell(textLines: widget.terminalLines),
-            currentStep: widget.currentStep,
-            percentProgress: widget.printProgress,
+            terminalShell: TerminalShell(textLines: terminalLines),
+            currentStep: currentStep,
+            percentProgress: printProgress,
+            doneCallback: () {
+              currentStep = "";
+              printProgress = 0.0;
+            },
           ),
         ]));
   }
