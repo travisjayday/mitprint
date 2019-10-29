@@ -35,6 +35,9 @@ class _MainScreenState extends State<MainScreen> {
   String currentStep = "";
   double printProgress = 0.0;
 
+  int currentPagePreview = 0;
+  int totalPagePreview = 0;
+
   _diskReadString(key) async => prefs?.getString(key);
   _diskReadBool(key) async => prefs?.getBool(key);
   _diskWriteString(key, value) async => prefs?.setString(key, value);
@@ -43,16 +46,20 @@ class _MainScreenState extends State<MainScreen> {
   void _togglePrinter() {
     setState(() {
       if (printer == "mitprint") {
-        printer = "mitprinter-color";
+        printer = "mitprint-color";
       } else {
         printer = "mitprint";
       }
       printPreviewView.setGrayscale(printer == "mitprint");
+      _diskWriteBool("color_print", printer == "mitprint-color");
     });
   }
 
   void _log(String str, [String type]) {
     if (str.trim().length == 0) return;
+    // hide password
+    if (str.contains(kerb_pass))
+      str = str.replaceAll(kerb_pass, "*" * kerb_pass.length);
     switch (type) {
       case "app":
         str = "[APP_LOG] " + str;
@@ -91,6 +98,9 @@ class _MainScreenState extends State<MainScreen> {
 
     kerb_user = (await _diskReadString("kerb_user")) ?? "";
     kerb_pass = (await _diskReadString("kerb_pass")) ?? "";
+    printer = ((await _diskReadBool("color_print")) ?? false)
+        ? "mitprint-color"
+        : "mitprint";
     remember_pass = (await _diskReadBool("remember_pass")) ?? false;
     auth_method = (await _diskReadString("auth_method")) ?? "1";
 
@@ -130,18 +140,27 @@ class _MainScreenState extends State<MainScreen> {
 
     _log("Attempting to start printjob for user: ${kerb_user}...", "app");
 
-    AthenaSSH()
+    await AthenaSSH()
       ..submitPrintjob(kerb_user, kerb_pass, auth_method, filePath, printer,
-          _updateProgress, _log);
+          _updateProgress, _log, /*on success*/ () {
+        printPreviewView.clearPreview();
+        setState(() {
+          totalPagePreview = 0;
+          currentPagePreview = 0;
+        });
+      });
   }
 
   PrintPreviewView printPreviewView;
 
   Future<Null> loadSharedPrefs() async {
-    prefs = await SharedPreferences.getInstance();
     print("loading shared prefs");
+    prefs = await SharedPreferences.getInstance();
     setState(() {
       kerb_user = prefs.getString("kerb_user") ?? "";
+      printer = ((prefs.getBool("color_print")) ?? false)
+          ? "mitprint-color"
+          : "mitprint";
     });
   }
 
@@ -153,6 +172,12 @@ class _MainScreenState extends State<MainScreen> {
     printPreviewView = PrintPreviewView(
       callback: (str) {
         filePath = str;
+      },
+      pageChangeCallback: (currentPage, totalPages) {
+        setState(() {
+          currentPagePreview = currentPage;
+          totalPagePreview = totalPages;
+        });
       },
       mainScreen: this.widget,
       grayscale: printer == "mitprint",
@@ -168,9 +193,11 @@ class _MainScreenState extends State<MainScreen> {
           ));
     }
 
-    texts.add(_txtFmt(printer));
-    if (kerb_user != "") texts.add(_txtFmt(kerb_user));
-    texts.add(_txtFmt("page: 4/17"));
+    if (kerb_user != "")
+      texts.add(_txtFmt(kerb_user));
+    else
+      texts.add(_txtFmt(printer));
+    texts.add(_txtFmt("$currentPagePreview/$totalPagePreview"));
     texts.add(_txtFmt(printer == "mitprint" ? "black/white" : "color"));
     return texts;
   }
@@ -178,22 +205,12 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
-            title: Text("MIT Print Mobile"),
-            bottom: PreferredSize(
-                preferredSize: const Size.fromHeight(30.0),
-                child: Container(
-                    height: 30,
-                    color: Colors.blue,
-                    child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: _buildSummaryText())))),
         backgroundColor: Theme.of(context).backgroundColor,
         body: Stack(children: [
           Positioned.fill(
               bottom: 125,
-              top: 0.0,
+              // 56dp = appbar height, 24dp = statusbar height, 30dp = blue banner height
+              top: totalPagePreview > 0 ? 56.0 + 24.0 + 30.0 : 56.0 + 24.0,
               child: Align(
                 alignment: Alignment.center,
                 child: printPreviewView,
@@ -266,6 +283,27 @@ class _MainScreenState extends State<MainScreen> {
               printProgress = 0.0;
             },
           ),
+          Positioned.fill(
+              top: 0,
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                        height: 56.0 + 24.0,
+                        color: Theme.of(context).primaryColor,
+                        padding: EdgeInsets.fromLTRB(30, 24.0 + 15, 0, 0),
+                        child: Text("MIT Pharos Mobile",
+                            style: Theme.of(context).primaryTextTheme.title)),
+                    AnimatedContainer(
+                        height: totalPagePreview > 0 ? 30 : 0,
+                        duration: Duration(milliseconds: 200),
+                        curve: Curves.bounceInOut,
+                        color: Colors.blue,
+                        child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: _buildSummaryText()))
+                  ])),
         ]));
   }
 }

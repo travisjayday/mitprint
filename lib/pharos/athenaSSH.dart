@@ -5,15 +5,15 @@ import 'package:ssh/ssh.dart';
 import '../password.dart';
 
 class AthenaSSH {
-  submitPrintjob(
+  Future<Null> submitPrintjob(
       String kerb_user,
       String kerb_pass,
       String auth_method,
       String filePath,
       String printer,
-      Function(String, double, double)
-          _updateProgress,
-      Function _log) async {
+      Function(String, double, double) _updateProgress,
+      Function _log,
+      Function onSuccessPrint) async {
     double stepNum = 0.0;
     double totalSteps = 17.0;
 
@@ -62,8 +62,8 @@ class AthenaSSH {
             callback: (progress) {
               _log(progress.toString(), "server");
               stepNum = step + (progress / 100.0) * 2; // takes 2 steps
-              _updateProgress("Uploading user files ($progress%)...", stepNum,
-                  totalSteps);
+              _updateProgress(
+                  "Uploading user files ($progress%)...", stepNum, totalSteps);
             },
           );
           _log(result, "result");
@@ -91,12 +91,13 @@ class AthenaSSH {
                 if (res
                     .toString()
                     .contains("Permission denied, please try again")) {
-                  _updateProgress("Invalid Athena Credentials!", totalSteps, totalSteps);
+                  _updateProgress(
+                      "Invalid Athena Credentials!", totalSteps, totalSteps);
                   _log("Invalid athena credentials!");
                 }
                 if (res.toString().contains("Connection refused")) {
-                  _updateProgress(
-                      "Connection refused! Check credentials.", totalSteps, totalSteps);
+                  _updateProgress("Connection refused! Check credentials.",
+                      totalSteps, totalSteps);
                   _log("Invalid athena credentials!");
                 }
                 // find json updates from logging to console
@@ -108,11 +109,13 @@ class AthenaSSH {
                   // check if status step is 6, the last step in printjob script
                   if (status["step"] == "6") {
                     if (printSucc) {
-                      _updateProgress(
-                          "Printjob Succesfully Submitted!", totalSteps, totalSteps);
+                      _updateProgress("Printjob Succesfully Submitted!",
+                          totalSteps, totalSteps);
+                      onSuccessPrint();
                       _log("Script terminates successfully...", "app");
                     } else {
-                      _updateProgress("Something Went Wrong", totalSteps, totalSteps);
+                      _updateProgress(
+                          "Something Went Wrong", totalSteps, totalSteps);
                       _log("Script terminates unsuccessfully...", "app");
                     }
                     _log("Disconnecting from SSH server", "app");
@@ -126,7 +129,7 @@ class AthenaSSH {
           _updateProgress("Starting printjob...", stepNum++, totalSteps);
 
           // Note: the script has 6 sub-steps
-          String cmd = "expect /home/${SSH_USER}/printJob.sh " +
+          String cmd = "expect /home/$SSH_USER/printJob.sh " +
               "$kerb_user " +
               "$kerb_pass " +
               "$auth_method " +
@@ -141,6 +144,8 @@ class AthenaSSH {
             const Duration(seconds: 60),
             () async {
               _log("Timeout Disconnecting from SSH session...", "app");
+              if (!printSucc)
+              _updateProgress("Session Timed Out!", totalSteps, totalSteps);
               client.disconnect();
             },
           );
