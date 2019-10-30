@@ -8,10 +8,15 @@ import 'dart:math';
 
 class PrintPreviewView extends StatefulWidget {
   Function(String) callback;
+  Function(int, int) pageChangeCallback;
   bool grayscale = true;
   final _PrintPreviewViewState state = _PrintPreviewViewState();
   MainScreen mainScreen;
-  PrintPreviewView({this.mainScreen, this.callback, this.grayscale});
+  PrintPreviewView(
+      {this.mainScreen,
+      this.callback,
+      this.grayscale,
+      this.pageChangeCallback});
 
   void pickFile() async {
     state._pickFile();
@@ -19,6 +24,16 @@ class PrintPreviewView extends StatefulWidget {
 
   void setGrayscale(gray) {
     grayscale = gray;
+    state.setState(() {});
+  }
+
+  void clearPreview() {
+    state.previewWidgets.clear();
+    state.rawImgs.clear();
+    state.initSingleCard();
+    state.pageCount = 0;
+    state.topPage = 0;
+    state.endCount = 0;
     state.setState(() {});
   }
 
@@ -127,6 +142,7 @@ class _PrintPreviewViewState extends State<PrintPreviewView>
 
       if (path.endsWith(".pdf")) {
         await _renderPdfPreview(path);
+        widget.pageChangeCallback(pageCount - topPage, pageCount);
       } else if (path.endsWith(".jpg") ||
           path.endsWith(".png") ||
           path.endsWith(".bmp") ||
@@ -140,6 +156,7 @@ class _PrintPreviewViewState extends State<PrintPreviewView>
                 child: Image.file(new Io.File(path))),
           );
         });
+        widget.pageChangeCallback(pageCount - topPage, pageCount);
       } else {
         // TODO: Better user feedback
         print("Unsupported FileType!!!");
@@ -220,6 +237,7 @@ class _PrintPreviewViewState extends State<PrintPreviewView>
                             ?.reverse();
                       });
                     }
+                    widget.pageChangeCallback(pageCount - topPage, pageCount);
                   },
                   child: Container(
                       color: Colors.transparent,
@@ -256,10 +274,7 @@ class _PrintPreviewViewState extends State<PrintPreviewView>
         ));
   }
 
-  /// Initialize state
-  @override
-  initState() {
-    super.initState();
+  initSingleCard() {
     printPreviewImgsTransform = [
       CardTransform(
           translate: Offset(0.0, 0.0),
@@ -267,6 +282,13 @@ class _PrintPreviewViewState extends State<PrintPreviewView>
           scale: 1.0,
           animScale: AnimationController(vsync: this))
     ];
+  }
+
+  /// Initialize state
+  @override
+  initState() {
+    super.initState();
+    initSingleCard();
   }
 
   /// Build UI

@@ -23,7 +23,7 @@ class MitPrintSettings extends StatelessWidget {
         SettingsTileGroup(
           title: "Printing",
           children: <Widget>[
-            SwitchSettingsTile(settingKey: "colorprint", title: "Use the Color Printer")
+            SwitchSettingsTile(settingKey: "color_print", title: "Use the Color Printer")
           ],
         ),
         SettingsTileGroup(
