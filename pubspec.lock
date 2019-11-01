@@ -234,13 +234,15 @@ packages:
       name: shared_preferences
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "0.4.3"
+    version: "0.5.4+3"
   shared_preferences_settings:
     dependency: "direct main"
     description:
-      name: shared_preferences_settings
-      url: "https://pub.dartlang.org"
-    source: hosted
+      path: "."
+      ref: HEAD
+      resolved-ref: "36a81d5d5ae1dc5249abe79067590fadc80e0fcf"
+      url: "https://github.com/BarthaBRW/shared_preferences_settings"
+    source: git
     version: "1.0.0+1"
   sky_engine:
     dependency: transitive
@@ -340,4 +342,4 @@ packages:
     version: "2.2.0"
 sdks:
   dart: ">=2.4.0 <3.0.0"
-  flutter: ">=1.5.9-pre.94 <2.0.0"
+  flutter: ">=1.6.7 <2.0.0"

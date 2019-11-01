@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mit_print/pharos/athenaSSH.dart';
 import 'package:mit_print/screens/loadingScreen.dart';
+import 'package:mit_print/widgets/printDialog.dart';
 import 'package:mit_print/widgets/printPreviewView.dart';
 import 'package:mit_print/widgets/terminalShell.dart';
 import 'package:flutter/services.dart';
@@ -50,9 +51,13 @@ class _MainScreenState extends State<MainScreen> {
       } else {
         printer = "mitprint";
       }
-      printPreviewView.setGrayscale(printer == "mitprint");
-      _diskWriteBool("color_print", printer == "mitprint-color");
+      _updatePrintPreviewColor();
     });
+    _diskWriteBool("color_print", printer == "mitprint-color");
+  }
+
+  void _updatePrintPreviewColor() {
+    printPreviewView.setGrayscale(printer == "mitprint");
   }
 
   void _log(String str, [String type]) {
@@ -110,9 +115,9 @@ class _MainScreenState extends State<MainScreen> {
           context: context,
           builder: (context) {
             return new KerbDialog(
-              kerbPass: kerb_pass,
-              kerbUser: kerb_user,
-              rememberPass: remember_pass,
+              pass: kerb_pass,
+              usr: kerb_user,
+              remember: remember_pass,
             );
           });
 
@@ -138,6 +143,14 @@ class _MainScreenState extends State<MainScreen> {
       }
     }
 
+    var result = await showDialog(
+        context: context,
+        builder: (context) {
+          return new PrintDialog(
+            fileName: filePath,
+          );
+        });
+
     _log("Attempting to start printjob for user: ${kerb_user}...", "app");
 
     await AthenaSSH()
@@ -153,7 +166,7 @@ class _MainScreenState extends State<MainScreen> {
 
   PrintPreviewView printPreviewView;
 
-  Future<Null> loadSharedPrefs() async {
+  Future<Null> _loadSharedPrefs() async {
     print("loading shared prefs");
     prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -168,7 +181,7 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     print("Inititing state");
-    loadSharedPrefs();
+    _loadSharedPrefs();
     printPreviewView = PrintPreviewView(
       callback: (str) {
         filePath = str;
@@ -185,12 +198,15 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   _buildSummaryText() {
-    List<Text> texts = List<Text>();
-    Text _txtFmt(String s) {
-      return Text(s,
-          style: TextStyle(
-            color: Colors.white,
-          ));
+    List<Widget> texts = List<Widget>();
+    Widget _txtFmt(String s) {
+      return Expanded(
+          flex: 33,
+          child: Center(
+              child: Text(s,
+                  style: TextStyle(
+                    color: Colors.white,
+                  ))));
     }
 
     if (kerb_user != "")
@@ -255,12 +271,16 @@ class _MainScreenState extends State<MainScreen> {
                               size: 40,
                               color: Colors.white,
                             ),
-                            onPressed: () {
-                              Navigator.push(
+                            onPressed: () async {
+                              await Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                     builder: (context) => MitPrintSettings()),
                               );
+                              setState(() {
+                                _loadSharedPrefs();
+                                _updatePrintPreviewColor();
+                              });
                             }),
                         IconButton(
                           icon: Icon(
@@ -292,7 +312,7 @@ class _MainScreenState extends State<MainScreen> {
                         height: 56.0 + 24.0,
                         color: Theme.of(context).primaryColor,
                         padding: EdgeInsets.fromLTRB(30, 24.0 + 15, 0, 0),
-                        child: Text("MIT Pharos Mobile",
+                        child: Text("MIT Print Mobile",
                             style: Theme.of(context).primaryTextTheme.title)),
                     AnimatedContainer(
                         height: totalPagePreview > 0 ? 30 : 0,
