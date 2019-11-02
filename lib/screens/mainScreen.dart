@@ -57,7 +57,7 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _updatePrintPreviewColor() {
-    printPreviewView.setGrayscale(printer == "mitprint");
+    setState(() => printPreviewView.setGrayscale(printer == "mitprint"));
   }
 
   void _log(String str, [String type]) {
@@ -98,7 +98,9 @@ class _MainScreenState extends State<MainScreen> {
 
     if (filePath == "") {
       print("No file was selected, picking file...");
-      return await printPreviewView.pickFile();
+      await printPreviewView.pickFile();
+      _updatePrintPreviewColor();
+      return;
     }
 
     kerb_user = (await _diskReadString("kerb_user")) ?? "";
@@ -121,7 +123,7 @@ class _MainScreenState extends State<MainScreen> {
             );
           });
 
-      if (result.toString() == "cancelled") {
+      if (result == null) {
         print("User action: Cancel");
         return;
       }
@@ -143,19 +145,22 @@ class _MainScreenState extends State<MainScreen> {
       }
     }
 
-    var result = await showDialog(
+    var printConfig = await showDialog(
         context: context,
         builder: (context) {
           return new PrintDialog(
             fileName: filePath,
           );
         });
+    if (printConfig == null) return;
+    String copies = printConfig["copies"];
+    String title = printConfig["title"];
 
     _log("Attempting to start printjob for user: ${kerb_user}...", "app");
 
     await AthenaSSH()
       ..submitPrintjob(kerb_user, kerb_pass, auth_method, filePath, printer,
-          _updateProgress, _log, /*on success*/ () {
+          copies, title, _updateProgress, _log, /*on success*/ () {
         printPreviewView.clearPreview();
         setState(() {
           totalPagePreview = 0;
@@ -174,6 +179,7 @@ class _MainScreenState extends State<MainScreen> {
       printer = ((prefs.getBool("color_print")) ?? false)
           ? "mitprint-color"
           : "mitprint";
+      auth_method = prefs.getString("auth_method") ?? "1";
     });
   }
 
@@ -206,6 +212,7 @@ class _MainScreenState extends State<MainScreen> {
               child: Text(s,
                   style: TextStyle(
                     color: Colors.white,
+                    fontWeight: FontWeight.w600
                   ))));
     }
 
@@ -224,9 +231,9 @@ class _MainScreenState extends State<MainScreen> {
         backgroundColor: Theme.of(context).backgroundColor,
         body: Stack(children: [
           Positioned.fill(
-              bottom: 125,
-              // 56dp = appbar height, 24dp = statusbar height, 30dp = blue banner height
-              top: totalPagePreview > 0 ? 56.0 + 24.0 + 30.0 : 56.0 + 24.0,
+              bottom: MediaQuery.of(context).size.height * 0.19,
+              // 65dp = appbar height, 24dp = statusbar height, 30dp = blue banner height
+              top: totalPagePreview > 0 ? 65 + 24 + 32.0: 65.0 + 24.0,
               child: Align(
                 alignment: Alignment.center,
                 child: printPreviewView,
@@ -277,10 +284,8 @@ class _MainScreenState extends State<MainScreen> {
                                 MaterialPageRoute(
                                     builder: (context) => MitPrintSettings()),
                               );
-                              setState(() {
-                                _loadSharedPrefs();
-                                _updatePrintPreviewColor();
-                              });
+                              await _loadSharedPrefs();
+                              _updatePrintPreviewColor();
                             }),
                         IconButton(
                           icon: Icon(
@@ -309,13 +314,13 @@ class _MainScreenState extends State<MainScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Container(
-                        height: 56.0 + 24.0,
+                        height: 65.0 + 24.0,
                         color: Theme.of(context).primaryColor,
-                        padding: EdgeInsets.fromLTRB(30, 24.0 + 15, 0, 0),
-                        child: Text("MIT Print Mobile",
-                            style: Theme.of(context).primaryTextTheme.title)),
+
+                        child: Align(alignment: Alignment(-0.833333, .33333), child: Text("MIT Print Mobile",
+                            style: Theme.of(context).primaryTextTheme.title))),
                     AnimatedContainer(
-                        height: totalPagePreview > 0 ? 30 : 0,
+                        height: totalPagePreview > 0 ? 32 : 0,
                         duration: Duration(milliseconds: 200),
                         curve: Curves.bounceInOut,
                         color: Colors.blue,

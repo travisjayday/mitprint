@@ -11,12 +11,15 @@ class AthenaSSH {
       String auth_method,
       String filePath,
       String printer,
+      String copies,
+      String title,
       Function(String, double, double) _updateProgress,
       Function _log,
       Function onSuccessPrint) async {
     double stepNum = 0.0;
     double totalSteps = 17.0;
 
+    bool clientConnected = false;
     var client = new SSHClient(
         host: "mitprint.xvm.mit.edu",
         port: 22,
@@ -32,6 +35,7 @@ class AthenaSSH {
       // END STEP 1 -----------------------------
 
       if (result == "session_connected") {
+        clientConnected = true;
         var dir = "$kerb_user\_printFiles";
 
         // STEP 2 -- Remove Old Directories -----
@@ -119,6 +123,7 @@ class AthenaSSH {
                       _log("Script terminates unsuccessfully...", "app");
                     }
                     _log("Disconnecting from SSH server", "app");
+                    clientConnected = false;
                     client.disconnect();
                   }
                 }
@@ -134,7 +139,9 @@ class AthenaSSH {
               "$kerb_pass " +
               "$auth_method " +
               "$dir " +
-              "$printer";
+              "$printer " +
+              "$copies " +
+              "$title";
           _log("Running printJob command on server...", "app");
           result = await client.writeToShell(cmd + "\n");
           _log(result, "result");
@@ -144,9 +151,11 @@ class AthenaSSH {
             const Duration(seconds: 60),
             () async {
               _log("Timeout Disconnecting from SSH session...", "app");
-              if (!printSucc)
-              _updateProgress("Session Timed Out!", totalSteps, totalSteps);
-              client.disconnect();
+              if (!printSucc) {
+                _updateProgress("Session Timed Out!", totalSteps, totalSteps);
+              }
+              if (clientConnected)
+                client.disconnect();
             },
           );
         }

@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class KerbDialog extends StatefulWidget {
   String usr;
@@ -64,7 +62,7 @@ class _KerbDialogState extends State<KerbDialog> {
         new FlatButton(
           child: new Text('CANCEL'),
           onPressed: () {
-            Navigator.of(context).pop("cancelled");
+            Navigator.of(context).pop();
           },
         ),
         new FlatButton(
