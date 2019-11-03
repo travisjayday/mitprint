@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:mit_print/pharos/athenaSSH.dart';
-import 'package:mit_print/screens/loadingScreen.dart';
-import 'package:mit_print/widgets/printDialog.dart';
-import 'package:mit_print/widgets/printPreviewView.dart';
-import 'package:mit_print/widgets/terminalShell.dart';
+import 'package:mitprint/pharos/athenaSSH.dart';
+import 'package:mitprint/screens/loadingScreen.dart';
+import 'package:mitprint/widgets/printDialog.dart';
+import 'package:mitprint/widgets/printPreviewView.dart';
+import 'package:mitprint/widgets/terminalShell.dart';
 import 'package:flutter/services.dart';
 import "../password.dart";
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:mit_print/graphics/backgroundClipper.dart';
-import 'package:mit_print/graphics/clipShadowPath.dart';
-import 'package:mit_print/screens/mitprintSettings.dart';
-import 'package:mit_print/widgets/kerbDialog.dart';
+import 'package:mitprint/graphics/backgroundClipper.dart';
+import 'package:mitprint/graphics/clipShadowPath.dart';
+import 'package:mitprint/screens/mitprintSettings.dart';
+import 'package:mitprint/widgets/kerbDialog.dart';
 
 class MainScreen extends StatefulWidget {
   MainScreen({Key key}) : super(key: key);
@@ -179,7 +179,11 @@ class _MainScreenState extends State<MainScreen> {
       printer = ((prefs.getBool("color_print")) ?? false)
           ? "mitprint-color"
           : "mitprint";
-      auth_method = prefs.getString("auth_method") ?? "1";
+      auth_method = prefs.getString("auth_method");
+      if (auth_method == null) {
+        auth_method = "1";
+        prefs.setString("auth_method", "1");
+      }
     });
   }
 
@@ -211,9 +215,7 @@ class _MainScreenState extends State<MainScreen> {
           child: Center(
               child: Text(s,
                   style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600
-                  ))));
+                      color: Colors.white, fontWeight: FontWeight.w600))));
     }
 
     if (kerb_user != "")
@@ -233,7 +235,7 @@ class _MainScreenState extends State<MainScreen> {
           Positioned.fill(
               bottom: MediaQuery.of(context).size.height * 0.19,
               // 65dp = appbar height, 24dp = statusbar height, 30dp = blue banner height
-              top: totalPagePreview > 0 ? 65 + 24 + 32.0: 65.0 + 24.0,
+              top: totalPagePreview > 0 ? 65 + 24 + 32.0 : 65.0 + 24.0,
               child: Align(
                 alignment: Alignment.center,
                 child: printPreviewView,
@@ -315,19 +317,27 @@ class _MainScreenState extends State<MainScreen> {
                   children: [
                     Container(
                         height: 65.0 + 24.0,
-                        color: Theme.of(context).primaryColor,
-
-                        child: Align(alignment: Alignment(-0.833333, .33333), child: Text("MIT Print Mobile",
-                            style: Theme.of(context).primaryTextTheme.title))),
+                        child: Material(
+                            elevation: 4,
+                            color: Theme.of(context).primaryColor,
+                            child: Align(
+                                alignment: Alignment(-0.833333, .33333),
+                                child: Text("MIT Print Mobile",
+                                    style: Theme.of(context)
+                                        .primaryTextTheme
+                                        .title)))),
                     AnimatedContainer(
                         height: totalPagePreview > 0 ? 32 : 0,
                         duration: Duration(milliseconds: 200),
                         curve: Curves.bounceInOut,
-                        color: Colors.blue,
-                        child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: _buildSummaryText()))
+                        child: Material(
+                            elevation: 4,
+                            color: Colors.blue,
+                            child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceAround,
+                                children: _buildSummaryText())))
                   ])),
         ]));
   }

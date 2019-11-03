@@ -1,4 +1,4 @@
-name: mit_print
+name: mitprint
 description: A new Flutter application.
 
 # The following defines the version and build number for your application.
@@ -38,7 +38,7 @@ dependencies:
 
 flutter_icons:
   android: true
-  ios: true
+  ios: false
   image_path: "assets/icon/icon.png"
   adaptive_icon_background: "assets/icon/icon-background.png"
   adaptive_icon_foreground: "assets/icon/icon-foreground.png"

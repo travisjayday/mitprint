@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shared_preferences_settings/shared_preferences_settings.dart';
 
 class MitPrintSettings extends StatelessWidget {
@@ -30,14 +29,14 @@ class MitPrintSettings extends StatelessWidget {
           title: "Other",
           children: <Widget>[
             SimpleSettingsTile(
-              title: 'Help',
+              title: 'Feedback & Help',
               screen:
                 SettingsScreen(
                   title: "Feedback & Help",
                     children: [
                     SettingsContainer(
                       // TODO: Write help section
-                      children: <Widget>[Text("This is a help section.")],
+                      children: <Widget>[Text("This help section has not been completed yet :(. Email sipb@mit.edu for feedback / help.")],
                     )
                 ])
             ),
@@ -49,7 +48,7 @@ class MitPrintSettings extends StatelessWidget {
                     children: [
                       SettingsContainer(
                         // TODO: Write help section
-                        children: <Widget>[Text("This is a Credits section.")],
+                        children: <Widget>[Text("This section has not been completed yet.")],
                       )
                     ])
             ),

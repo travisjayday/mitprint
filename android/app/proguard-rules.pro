@@ -1,0 +1,15 @@
+## Flutter wrapper
+-keep class io.flutter.app.** { *; }
+-keep class io.flutter.plugin.**  { *; }
+-keep class io.flutter.util.**  { *; }
+-keep class io.flutter.view.**  { *; }
+-keep class io.flutter.**  { *; }
+-keep class io.flutter.plugins.**  { *; }
+-dontwarn io.flutter.embedding.**
+-dontwarn android.**
+-dontwarn org.ietf.jgss.**
+-keep class com.jcraft.jzlib.ZStream
+-keep class * extends com.jcraft.jsch.KeyExchange
+-keep class com.jcraft.**
+-keep class org.ietf.jgss.*
+-dontwarn org.jcraft.**

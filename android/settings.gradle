@@ -1,4 +1,4 @@
-include ':app', ':ssh_test'
+include ':app'
 
 def flutterProjectRoot = rootProject.projectDir.parentFile.toPath()
 

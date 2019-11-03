@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mit_print/screens/mainScreen.dart';
+import 'package:mitprint/screens/mainScreen.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'dart:io' as Io;
@@ -28,8 +28,8 @@ class PrintPreviewView extends StatefulWidget {
   }
 
   void clearPreview() {
-    state.previewWidgets.clear();
-    state.rawImgs.clear();
+    state.previewWidgets?.clear();
+    state.rawImgs?.clear();
     state.initSingleCard();
     state.pageCount = 0;
     state.topPage = 0;
@@ -119,9 +119,11 @@ class _PrintPreviewViewState extends State<PrintPreviewView>
 
   /// Prompts user to pick a file, then starts the rendering process
   void _pickFile() async {
+    bool unsupported = false;
     if (pickingFile) return;
     pickingFile = true;
     setState(() {
+      widget.clearPreview();
       printPreviewIcon = SpinKitRing(color: Colors.grey[300], size: 110);
     });
     var path = await FilePicker.getFilePath(type: FileType.ANY);
@@ -158,13 +160,16 @@ class _PrintPreviewViewState extends State<PrintPreviewView>
         });
         widget.pageChangeCallback(pageCount - topPage, pageCount);
       } else {
-        // TODO: Better user feedback
         print("Unsupported FileType!!!");
+        unsupported = true;
       }
     } else
       path = "";
     setState(() {
-      printPreviewIcon = Icon(Icons.add, color: Colors.grey[400], size: 100);
+      if (!unsupported)
+        printPreviewIcon = Icon(Icons.add, color: Colors.grey[400], size: 100);
+      else
+        printPreviewIcon = Text("Filetype not recongized.\n\nPrint at your own risk.");
     });
   }
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'package:mit_print/widgets/terminalShell.dart';
+import 'package:mitprint/widgets/terminalShell.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
 
 class LoadingScreen extends StatefulWidget {
