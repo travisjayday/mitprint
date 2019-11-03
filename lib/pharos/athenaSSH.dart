@@ -110,7 +110,11 @@ class AthenaSSH {
                   String response = regExp.allMatches(res).first.group(0);
                   var status = json.decode(response);
                   _updateProgress(status["desc"], stepNum++, totalSteps);
-                  // check if status step is 6, the last step in printjob script
+
+                  if (status["step"] == 4) {
+
+                  }
+                    // check if status step is 6, the last step in printjob script
                   if (status["step"] == "6") {
                     if (printSucc) {
                       _updateProgress("Printjob Succesfully Submitted!",
