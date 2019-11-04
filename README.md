@@ -1,16 +1,23 @@
-# mit_print
+# MIT Print
 
-A new Flutter application.
+A mobile printing solution for MIT Pharos printers. 
 
-## Getting Started
+## Features
 
-This project is a starting point for a Flutter application.
+- Preview and print images and PDF files
+- Send print jobs to color or black/white Pharos printers
+- Kerberos & DUO two-factor authentication
+- Print multiple copies, name print jobs, remember credentials and more!
 
-A few resources to get you started if this is your first Flutter project:
+## How it works
 
-- [Lab: Write your first Flutter app](https://flutter.dev/docs/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://flutter.dev/docs/cookbook)
+- The user supplies his kerberos / athena credentials, configures other settings, and selects a document to print. 
+- An SSH session is started with athena.dialup.mit.edu and the user authenticates himself with DUO.
+- User files are uploaded via SFTP to his athena locker into a temporary folder.
+- `lp` is run over SSH and the document from the temp folder is sent to the user's print queue.
 
-For help getting started with Flutter, view our
-[online documentation](https://flutter.dev/docs), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Development
+MIT Print is developed with Flutter, a cross platform mobile development SDK. Currently, running on iOS should be possible but has not been tested. The app is currently available on Google Play at https://play.google.com/store/apps/details?id=com.tzgames.mitprint.
+
+## Contact
+This projcet is a SIPB project and is maintained by `tjz@mit.edu`. For questions or feature requests or problems, email `tjz` or open an issue in the repo.
