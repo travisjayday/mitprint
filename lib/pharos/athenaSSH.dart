@@ -6,6 +6,7 @@ class AthenaSSH {
   MethodChannel platform;
   void Function(String) logString;
   void Function(String, double) setStep;
+  void Function() printSuccess;
   int totalSteps = 6;
   int currentStep = 0;
 
@@ -14,9 +15,10 @@ class AthenaSSH {
   }
   Future<Null> submitPrintjob(var params,
       {void Function(String) logString,
-      void Function(String, double) setStep}) async {
+      void Function(String, double) setStep, Function() printSuccess}) async {
     this.logString = logString;
     this.setStep = setStep;
+    this.printSuccess = printSuccess;
     platform.setMethodCallHandler(_nativeCallbackHandler);
     platform.invokeMethod('submitPrintjob', params);
   }
@@ -36,6 +38,9 @@ class AthenaSSH {
           currentStep = code;
         setStep(call.arguments.split("|")[1],
             currentStep++ / totalSteps.toDouble());
+        break;
+      case "printSuccess":
+        printSuccess();
     }
   }
 }

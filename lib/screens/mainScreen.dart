@@ -139,6 +139,8 @@ class _MainScreenState extends State<MainScreen> {
           currentStep = desc;
           printProgress = percentage;
         });
+      }, printSuccess: () {
+        printPreviewView.clearPreview();
       });
   }
 

@@ -159,7 +159,9 @@ public class DirectAthenaSSH extends AsyncTask<String, String, String> {
     }
 
     @Override
-    protected void onPostExecute(String result) {}
+    protected void onPostExecute(String result) {
+        gui.invokeMethod("printSuccess", "");
+    }
 
     @Override
     protected void onPreExecute() {}
