@@ -28,7 +28,7 @@ class _LoadingScreenState extends State<LoadingScreen>
   Widget build(BuildContext context) {
     return AnimatedSize(
         vsync: this,
-        duration: Duration(seconds: 1),
+        duration: Duration(milliseconds: 500),
         curve: Curves.easeInOut,
         child: Container(
             color: Theme.of(context).backgroundColor,
@@ -81,7 +81,7 @@ class _LoadingScreenState extends State<LoadingScreen>
                     AnimatedSize(
                         vsync: this,
                         duration: Duration(seconds: 1),
-                        reverseDuration: Duration(milliseconds: 500),
+                        reverseDuration: Duration(milliseconds: 800),
                         curve: Curves.easeInOut,
                         child: Container(
                             width: MediaQuery.of(context).size.width,

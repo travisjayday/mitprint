@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:mitprint/pharos/athenaSSH.dart';
+import 'package:mitprint/pharos/athenaSSH.dart.old';
 import 'package:mitprint/screens/loadingScreen.dart';
 import 'package:mitprint/widgets/printDialog.dart';
 import 'package:mitprint/widgets/printPreviewView.dart';
 import 'package:mitprint/widgets/terminalShell.dart';
 import 'package:flutter/services.dart';
-import "../password.dart";
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mitprint/graphics/backgroundClipper.dart';
 import 'package:mitprint/graphics/clipShadowPath.dart';
 import 'package:mitprint/screens/mitprintSettings.dart';
 import 'package:mitprint/widgets/kerbDialog.dart';
+
+import '../pharos/athenaSSH.dart';
 
 class MainScreen extends StatefulWidget {
   MainScreen({Key key}) : super(key: key);
@@ -21,15 +22,13 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   static const platform = const MethodChannel('flutter.native/helper');
-  var prefs = null;
+  SharedPreferences prefs;
+
   String filePath = "";
-  String user = SSH_USER;
-  String password = SSH_PASS;
   String kerb_user = "";
   String kerb_pass = "";
   String printer = "mitprint";
   String auth_method = "1";
-
   bool remember_pass = false;
 
   List<String> terminalLines = new List<String>();
@@ -39,10 +38,7 @@ class _MainScreenState extends State<MainScreen> {
   int currentPagePreview = 0;
   int totalPagePreview = 0;
 
-  _diskReadString(key) async => prefs?.getString(key);
-  _diskReadBool(key) async => prefs?.getBool(key);
-  _diskWriteString(key, value) async => prefs?.setString(key, value);
-  _diskWriteBool(key, value) async => prefs?.setBool(key, value);
+  PrintPreviewView printPreviewView;
 
   void _togglePrinter() {
     setState(() {
@@ -53,43 +49,11 @@ class _MainScreenState extends State<MainScreen> {
       }
       _updatePrintPreviewColor();
     });
-    _diskWriteBool("color_print", printer == "mitprint-color");
+    prefs.setBool("color_print", printer == "mitprint-color");
   }
 
   void _updatePrintPreviewColor() {
     setState(() => printPreviewView.setGrayscale(printer == "mitprint"));
-  }
-
-  void _log(String str, [String type]) {
-    if (str.trim().length == 0) return;
-    // hide password
-    if (str.contains(kerb_pass))
-      str = str.replaceAll(kerb_pass, "*" * kerb_pass.length);
-    switch (type) {
-      case "app":
-        str = "[APP_LOG] " + str;
-        break;
-      case "result":
-        str = "[Result] " + str;
-        break;
-      case "server":
-        str = "[SERVER_LOG] " + str;
-        break;
-      case "warning":
-        str = "[WARNING] " + str;
-        break;
-      case "error":
-        str = "[ERROR] " + str;
-    }
-    print(str);
-    terminalLines.add(str.trimRight());
-  }
-
-  void _updateProgress(String desc, double stepNum, double totalSteps) {
-    setState(() {
-      currentStep = desc;
-      printProgress = stepNum / totalSteps;
-    });
   }
 
   void _printFile() async {
@@ -103,13 +67,13 @@ class _MainScreenState extends State<MainScreen> {
       return;
     }
 
-    kerb_user = (await _diskReadString("kerb_user")) ?? "";
-    kerb_pass = (await _diskReadString("kerb_pass")) ?? "";
-    printer = ((await _diskReadBool("color_print")) ?? false)
+    kerb_user = (await prefs.getString("kerb_user")) ?? "";
+    kerb_pass = (await prefs.getString("kerb_pass")) ?? "";
+    printer = ((await prefs.getBool("color_print")) ?? false)
         ? "mitprint-color"
         : "mitprint";
-    remember_pass = (await _diskReadBool("remember_pass")) ?? false;
-    auth_method = (await _diskReadString("auth_method")) ?? "1";
+    remember_pass = (await prefs.getBool("remember_pass")) ?? false;
+    auth_method = (await prefs.getString("auth_method")) ?? "1";
 
     if (kerb_user == "" || kerb_pass == "") {
       print("No user/pass was selected...");
@@ -139,9 +103,9 @@ class _MainScreenState extends State<MainScreen> {
         print("Did not specify password");
         return;
       } else {
-        await _diskWriteBool("remember_pass", remember_pass);
-        await _diskWriteString("kerb_user", kerb_user);
-        if (remember_pass) await _diskWriteString("kerb_pass", kerb_pass);
+        await prefs.setBool("remember_pass", remember_pass);
+        await prefs.setString("kerb_user", kerb_user);
+        if (remember_pass) await prefs.setString("kerb_pass", kerb_pass);
       }
     }
 
@@ -156,20 +120,27 @@ class _MainScreenState extends State<MainScreen> {
     String copies = printConfig["copies"];
     String title = printConfig["title"];
 
-    _log("Attempting to start printjob for user: ${kerb_user}...", "app");
-
-    await AthenaSSH()
-      ..submitPrintjob(kerb_user, kerb_pass, auth_method, filePath, printer,
-          copies, title, _updateProgress, _log, /*on success*/ () {
-        printPreviewView.clearPreview();
+    AthenaSSH(platform)
+      ..submitPrintjob({
+        "user": kerb_user,
+        "pass": kerb_pass,
+        "auth": auth_method,
+        "filePath": filePath,
+        "printer": printer,
+        "copies": copies,
+        "title": title
+      }, logString: (str) {
         setState(() {
-          totalPagePreview = 0;
-          currentPagePreview = 0;
+          if (str.trim().length == 0) return;
+          terminalLines.add(str);
+        });
+      }, setStep: (desc, percentage) {
+        setState(() {
+          currentStep = desc;
+          printProgress = percentage;
         });
       });
   }
-
-  PrintPreviewView printPreviewView;
 
   Future<Null> _loadSharedPrefs() async {
     print("loading shared prefs");

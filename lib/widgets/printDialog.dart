@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 class PrintDialog extends StatefulWidget {
-  String fileName;
+  final String fileName;
 
   PrintDialog({this.fileName});
 

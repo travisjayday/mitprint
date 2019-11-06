@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 class KerbDialog extends StatefulWidget {
-  String usr;
-  String pass;
-  bool remember;
+  final String usr;
+  final String pass;
+  final bool remember;
 
   KerbDialog({
     this.usr,
