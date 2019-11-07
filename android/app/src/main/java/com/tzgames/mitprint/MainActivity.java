@@ -11,6 +11,7 @@ import io.flutter.plugins.GeneratedPluginRegistrant;
 
 public class MainActivity extends FlutterActivity {
     private static final String CHANNEL = "flutter.native/helper";
+    private DirectAthenaSSH printjob;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -21,7 +22,6 @@ public class MainActivity extends FlutterActivity {
             new MethodChannel.MethodCallHandler() {
                 @Override
                 public void onMethodCall(MethodCall call, MethodChannel.Result result) {
-                    Log.d(CHANNEL, "Recevied native call.");
                     if (call.method.equals("submitPrintjob")) {
                         String user = call.argument("user");
                         String pass = call.argument("pass");
@@ -32,9 +32,12 @@ public class MainActivity extends FlutterActivity {
                         String title = call.argument("title");
 
                         String params[] = {user, pass, auth, filePath, printer, copies, title};
-                        DirectAthenaSSH asyncTask = new DirectAthenaSSH(channel);
-                        asyncTask.execute(params);
-                        result.success("called method");
+                        System.out.println("Started new SSH job");
+                        printjob = new DirectAthenaSSH(channel);
+                        printjob.execute(params);
+                    }
+                    else if (call.method.equals("cancelPrintjob")) {
+                        printjob.cancel(true);
                     }
                 }});
     }

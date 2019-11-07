@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:mitprint/pharos/athenaSSH.dart.old';
 import 'package:mitprint/screens/loadingScreen.dart';
 import 'package:mitprint/widgets/printDialog.dart';
 import 'package:mitprint/widgets/printPreviewView.dart';
@@ -10,6 +9,7 @@ import 'package:mitprint/graphics/backgroundClipper.dart';
 import 'package:mitprint/graphics/clipShadowPath.dart';
 import 'package:mitprint/screens/mitprintSettings.dart';
 import 'package:mitprint/widgets/kerbDialog.dart';
+import 'package:back_button_interceptor/back_button_interceptor.dart';
 
 import '../pharos/athenaSSH.dart';
 
@@ -178,6 +178,15 @@ class _MainScreenState extends State<MainScreen> {
       mainScreen: this.widget,
       grayscale: printer == "mitprint",
     );
+    BackButtonInterceptor.add(_cancelSSH);
+  }
+
+  @override
+  void dispose() {
+    BackButtonInterceptor.remove(_cancelSSH);
+    super.dispose();
+    print("Disposing printjob");
+    platform.invokeMethod('cancelPrintjob');
   }
 
   _buildSummaryText() {
@@ -198,6 +207,14 @@ class _MainScreenState extends State<MainScreen> {
     texts.add(_txtFmt("$currentPagePreview/$totalPagePreview"));
     texts.add(_txtFmt(printer == "mitprint" ? "black/white" : "color"));
     return texts;
+  }
+
+  bool _cancelSSH(bool stopDefaultButtonEvent) {
+    if (currentStep == "") return false;
+    setState(() { currentStep = ""; });
+    print("currentSTEP: " + currentStep);
+    platform.invokeMethod('cancelPrintjob');
+    return true;
   }
 
   @override

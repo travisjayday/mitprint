@@ -72,8 +72,7 @@ class _PrintDialogState extends State<PrintDialog> {
                                                 extentOffset: txt.length));
                                   }
                                 },
-                                decoration: InputDecoration(
-                                    hintText: "1"))),
+                                decoration: InputDecoration(hintText: "1"))),
                         Expanded(
                             flex: 60,
                             child: Row(
@@ -125,7 +124,9 @@ class _PrintDialogState extends State<PrintDialog> {
           child: new Text('CONTINUE'),
           onPressed: () async {
             Navigator.of(context).pop({
-              "title": printNameCotrol.text.toString(),
+              "title": printNameCotrol.text.length > 0
+                  ? printNameCotrol.text.toString()
+                  : widget.fileName.split("/").last,
               "copies": copies.toString()
             });
           },

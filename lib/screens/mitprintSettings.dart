@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences_settings/shared_preferences_settings.dart';
 
-import 'helpScreen.dart';
+import 'markdownTiled.dart';
 
 class MitPrintSettings extends StatelessWidget {
   const MitPrintSettings() : super();
@@ -40,15 +40,15 @@ class MitPrintSettings extends StatelessWidget {
           children: <Widget>[
             SimpleSettingsTile(
                 title: 'Feedback & Help',
-                screen: SettingsScreen(
-                    title: "Feedback & Help", children: [SettingsContainer(children: [HelpScreen()])])),
-            SimpleSettingsTile(
-                title: 'Credits',
-                screen: SettingsScreen(title: "Credits", children: [
+                screen: SettingsScreen(title: "Feedback & Help", children: [
                   SettingsContainer(
-                    // TODO: Write help section
-                    children: <Widget>[Text("")],
-                  )
+                      children: [MarkdownTiled(file: "README.md")])
+                ])),
+            SimpleSettingsTile(
+                title: 'Credits & Data',
+                screen: SettingsScreen(title: "Credits & Data", children: [
+                  SettingsContainer(
+                      children: [MarkdownTiled(file: "CREDITS.md")])
                 ])),
           ],
         )

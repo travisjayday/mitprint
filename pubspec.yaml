@@ -29,14 +29,13 @@ dependencies:
   percent_indicator: ^2.1.1
   flutter_spinkit: ^3.1.0
   flutter_swiper: ^1.1.6
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^0.1.2
   shared_preferences: ^0.5.3+4
   flutter_svg: ^0.14.2
   flutter_launcher_icons: ^0.7.4
   flutter_markdown: ^0.3.0
   url_launcher: ^5.2.5
+  back_button_interceptor: ^4.2.1
 
 flutter_icons:
   android: true
@@ -69,5 +68,6 @@ flutter:
 
   assets:
     - README.md
+    - CREDITS.md
    # - assets/
   # Credits for RGB Icon:  <div>Icons made by <a href="https://www.flaticon.com/authors/freepik" title="Freepik">Freepik</a> from <a href="https://www.flaticon.com/"             title="Flaticon">www.flaticon.com</a></div>

@@ -111,7 +111,7 @@ class _LoadingScreenState extends State<LoadingScreen>
                                               color: Colors.green)),
                                       TextSpan(
                                         text:
-                                            "Authentication is required.\nWaiting for response",
+                                            "Authentication is required.\nWaiting for response...",
                                       ),
                                     ],
                                   ),

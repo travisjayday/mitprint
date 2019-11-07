@@ -3,10 +3,12 @@ package com.tzgames.mitprint;
 import android.os.AsyncTask;
 import android.util.Log;
 
+import com.jcraft.jsch.Buffer;
 import com.jcraft.jsch.Channel;
 import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.Packet;
 import com.jcraft.jsch.Session;
 import com.jcraft.jsch.SftpException;
 import com.jcraft.jsch.SftpProgressMonitor;
@@ -28,9 +30,19 @@ import io.flutter.plugin.common.MethodChannel;
 
 public class DirectAthenaSSH extends AsyncTask<String, String, String> {
     private MethodChannel gui;
+    private Session session;
 
     DirectAthenaSSH(MethodChannel gui) {
         this.gui = gui;
+    }
+
+    @Override
+    protected void onCancelled(){
+        if (session != null) {
+            session.disconnect();
+        }
+        // TODO: make better cancel
+        System.out.println("Cancelled SSH job");
     }
 
     @Override
@@ -53,7 +65,7 @@ public class DirectAthenaSSH extends AsyncTask<String, String, String> {
             JSch.setLogger(new MyLogger());
             JSch jsch = new JSch();
 
-            Session session = jsch.getSession(user, "athena.dialup.mit.edu", 22);
+            session = jsch.getSession(user, "athena.dialup.mit.edu", 22);
             session.setPassword(pass);
             session.setUserInfo(athenaUser);
             session.setConfig(config);
@@ -64,6 +76,7 @@ public class DirectAthenaSSH extends AsyncTask<String, String, String> {
             Thread.sleep(850);                      // pause to wait for animation to finish
             publishProgress("step:2| Connecting to Athena Dialup (DUO)...",
                     "log: Connecting to " + user + "@athena.dialup.mit.edu...");
+            session.setTimeout(1000 * 20);
             session.connect();
 
             /* STEP 3 */
