@@ -40,12 +40,6 @@ public class DirectAthenaSSH extends AsyncTask<String, String, String> {
         this.gui = gui;
     }
 
-    @Override
-    //TODO: Find a better way to cancel ssh job and session.connect();
-    protected void onCancelled(){
-
-    }
-
     public void userCancel() {
         Log.d("JSH", "Cancelling SSH job...");
         cancelled = true;
@@ -72,12 +66,6 @@ public class DirectAthenaSSH extends AsyncTask<String, String, String> {
 
         try {
             JSch.setLogger(new MyLogger());
-            JSch jsch = new JSch();
-
-            session = jsch.getSession(user, "athena.dialup.mit.edu", 22);
-            session.setPassword(pass);
-            session.setUserInfo(athenaUser);
-            session.setConfig(config);
 
             /* STEP 1+2 */
             // Dummy Step to wait for animation. Then connect to SSH server and authenticate with DUO
@@ -85,17 +73,22 @@ public class DirectAthenaSSH extends AsyncTask<String, String, String> {
             Thread.sleep(850);                      // pause to wait for animation to finish
             publishProgress("step:2| Connecting to Athena Dialup (DUO)...",
                     "log: Connecting to " + user + "@athena.dialup.mit.edu...");
-            int tries = 3;
+            int tries = 2;
             while (tries > 0) {
                 publishProgress("log:Connection attempts remaining: " + tries);
                 tries--;
                 if (cancelled) return "";
                 try {
-                    session.setTimeout(30000);
-                } catch (JSchException t) {
-                    handleException(t);
-                }
-                session.connect();
+                    JSch jsch = new JSch();
+                    session = jsch.getSession(user, "athena.dialup.mit.edu", 22);
+                    session.setPassword(pass);
+                    session.setUserInfo(athenaUser);
+                    session.setConfig(config);
+                    session.setTimeout(40000);
+                    session.connect();
+                } catch (JSchException t) { }
+                if (session.isConnected())
+                    break;
             }
 
             /* STEP 3 */

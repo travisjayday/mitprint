@@ -8,7 +8,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Pharos Mobile',
+      title: 'MIT Print',
       theme: ThemeData(
         primaryColor: Color.fromRGBO(163, 31, 52, 1.0),
         accentColor: Color.fromRGBO(138, 139, 140, 1.0),

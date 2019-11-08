@@ -13,8 +13,8 @@ class _TerminalShellState extends State<TerminalShell> {
   Widget build(BuildContext context) {
     return Padding(
         padding: EdgeInsets.fromLTRB(30, 0, 30, 00),
-        child: SelectableText(widget.textLines?.length > 0?
-            widget.textLines?.reduce((value, element) => value + "\n" + element) ?? "" : "",
+        child: SelectableText(widget.textLines != null && widget.textLines.length > 0?
+        widget.textLines?.reduce((value, element) => value + "\n" + element) ?? "" : "",
             style: TextStyle(color: Colors.green, fontFamily: "Monospace")));
   }
 }
