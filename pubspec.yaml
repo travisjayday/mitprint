@@ -1,5 +1,5 @@
 name: mitprint
-description: A new Flutter application.
+description: A mobile printing solution for MIT.
 
 # The following defines the version and build number for your application.
 # A version number is three numbers separated by dots, like 1.2.43
@@ -11,7 +11,7 @@ description: A new Flutter application.
 # In iOS, build-name is used as CFBundleShortVersionString while build-number used as CFBundleVersion.
 # Read more about iOS versioning at
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
-version: 1.0.0+1
+version: 1.0.0+2
 
 environment:
   sdk: ">=2.1.0 <3.0.0"
@@ -19,11 +19,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
   ssh: ^0.0.4
   file_picker: ^1.4.1
   pdf_render: ^0.57.0
   file: ^5.1.0
+  # this version includes obfuscated textfields needed for password
   shared_preferences_settings:
     git: https://github.com/BarthaBRW/shared_preferences_settings
   percent_indicator: ^2.1.1
@@ -44,8 +44,6 @@ flutter_icons:
   adaptive_icon_background: "assets/icon/icon-background.png"
   adaptive_icon_foreground: "assets/icon/icon-foreground.png"
 
-
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -55,19 +53,8 @@ fonts:
     fonts:
       - asset: Monospace.ttf
 
-# For information on the generic Dart part of this file, see the
-# following page: https://dart.dev/tools/pub/pubspec
-
-# The following section is specific to Flutter.
 flutter:
-
-  # The following line ensures that the Material Icons font is
-  # included with your application, so that you can use the icons in
-  # the material Icons class.
   uses-material-design: true
-
   assets:
     - README.md
     - CREDITS.md
-   # - assets/
-  # Credits for RGB Icon:  <div>Icons made by <a href="https://www.flaticon.com/authors/freepik" title="Freepik">Freepik</a> from <a href="https://www.flaticon.com/"             title="Flaticon">www.flaticon.com</a></div>

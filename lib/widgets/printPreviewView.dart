@@ -85,19 +85,16 @@ class _PrintPreviewViewState extends State<PrintPreviewView>
 
   /// Load a pdf file and populate data lists in state
   _renderPdfPreview(String filePath) async {
-    if (printPreviewImgsTransform == null)
-      printPreviewImgsTransform = new List<CardTransform>();
-    else
-      printPreviewImgsTransform.clear();
-
     // get PDF data from file
     final PdfDocument doc = await PdfDocument.openFile(filePath);
-    pageCount = doc.pageCount;
+
+    if (printPreviewImgsTransform == null)
+      printPreviewImgsTransform = new List<CardTransform>();
 
     // Populate transform and raw preiew lists from back to front
     // E.g. the last page is the first in the list. This makes it so
     // that the last page is at the bottom of the stack in the build method
-    for (var i = pageCount - 1; i >= 0; i--) {
+    for (var i = doc.pageCount - 1; i >= 0; i--) {
       PdfPage page = await doc.getPage(i + 1);
       PdfPageImage pageImage = await page.render();
       rawImgs.add(RawImage(image: pageImage.image));
@@ -105,15 +102,15 @@ class _PrintPreviewViewState extends State<PrintPreviewView>
         CardTransform(
             scale: 1,
             translate: Offset(0.0, 0.05 - 0.05 / (pow(1.5, i))),
-            elevation: 2 * (pageCount - i) / pageCount + 1,
+            elevation: 2 * (doc.pageCount - i) / doc.pageCount + 1,
             animScale: AnimationController(
                 duration: const Duration(milliseconds: 500), vsync: this)),
       );
     }
+    pageCount = doc.pageCount;
     topPage = pageCount - 1;
     /* the top page in the stack has the greatest index
                                  e.g. first page in pdf has index pageCount -1*/
-    setState(() {}); // trigger rebuild to display new pdf
     doc.dispose(); // dispose of pdf in memory
   }
 
@@ -122,14 +119,15 @@ class _PrintPreviewViewState extends State<PrintPreviewView>
     bool unsupported = false;
     if (pickingFile) return;
     pickingFile = true;
-    setState(() {
-      widget.clearPreview();
-      printPreviewIcon = SpinKitRing(color: Colors.grey[300], size: 110);
-    });
+
     var path = await FilePicker.getFilePath(type: FileType.ANY);
     pickingFile = false;
     print("Selected file: " + path.toString());
     if (path != null) {
+      pageCount = 0;
+      print("page count: " + pageCount.toString());
+
+
       widget.callback(path);
       // initialize or clear data lists
       if (previewWidgets == null)
@@ -141,6 +139,17 @@ class _PrintPreviewViewState extends State<PrintPreviewView>
         rawImgs = new List<Widget>();
       else
         rawImgs.clear();
+
+      if (printPreviewImgsTransform == null)
+        printPreviewImgsTransform = new List<CardTransform>();
+      else
+        printPreviewImgsTransform.clear();
+
+      setState(() {
+        printPreviewIcon = SpinKitRing(color: Colors.grey[300], size: 110);
+        initSingleCard();
+      });
+
 
       if (path.endsWith(".pdf")) {
         await _renderPdfPreview(path);
@@ -163,8 +172,10 @@ class _PrintPreviewViewState extends State<PrintPreviewView>
         print("Unsupported FileType!!!");
         unsupported = true;
       }
-    } else
-      path = "";
+    } else {
+      // selected file is null (user cancelled or didnt select file)
+      if (path != "") return;
+    }
     setState(() {
       if (!unsupported)
         printPreviewIcon = Icon(Icons.add, color: Colors.grey[400], size: 100);
@@ -175,6 +186,7 @@ class _PrintPreviewViewState extends State<PrintPreviewView>
 
   /// Builds & returns the list of previewWidgets
   _buildPreviewImgs() {
+    if (pageCount == 0) return [_createCard(Container(), 0)];
     if (previewWidgets != null) previewWidgets.clear();
     endCount =
         topPage - maxPageBuffer + 1 > 0 ? topPage - maxPageBuffer + 1 : 0;
@@ -300,8 +312,7 @@ class _PrintPreviewViewState extends State<PrintPreviewView>
   Widget build(BuildContext context) {
     return Stack(
         alignment: Alignment.center,
-        children: pageCount != 0
-            ? _buildPreviewImgs()
-            : [_createCard(Container(), 0)]);
+        children: _buildPreviewImgs());
+
   }
 }

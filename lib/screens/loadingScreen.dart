@@ -89,38 +89,64 @@ class _LoadingScreenState extends State<LoadingScreen>
                                 ? MediaQuery.of(context).size.height * 0.4
                                 : 0,
                             color: Colors.black,
-                            child: widget.terminalShell))
+                            child: widget.terminalShell)),
                   ])),
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: AnimatedOpacity(
+                  duration: Duration(milliseconds: 800),
+                    opacity:
+                        widget.currentStep.toLowerCase().contains("success")
+                            ? 1.0
+                            : 0.0,
+                    child: Padding(
+                        padding: EdgeInsets.fromLTRB(40.0, 0.0, 40.0,
+                            MediaQuery.of(context).size.height * 0.08),
+                        child: Text(
+                          "It may take up to a minute for the print job to appear in Pharos terminals.",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey[600]),
+                        ))),
+              ),
               Container(
                   child: widget.currentStep.toLowerCase().contains("duo")
-                      ? Container(width: MediaQuery.of(context).size.width, height: MediaQuery.of(context).size.height, color: Color.fromARGB(90, 0, 0, 0), child: AlertDialog(
-                          title: Text("Touchstone@MIT"),
-                          content:
-                              Column(mainAxisSize: MainAxisSize.min, children: [
-                            Align(
-                                alignment: Alignment.centerLeft,
-                                child: RichText(
-                                  textAlign: TextAlign.left,
-                                  text: TextSpan(
-                                    style: Theme.of(context).textTheme.body1,
-                                    children: <TextSpan>[
-                                      TextSpan(
-                                          text: 'Duo ',
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.w900,
-                                              color: Colors.green)),
-                                      TextSpan(
-                                        text:
-                                            "Authentication is required.\nWaiting for response...",
-                                      ),
-                                    ],
-                                  ),
-                                )),
-                            Padding(
-                                padding: EdgeInsets.fromLTRB(0, 25.0, 10, 0),
-                                child: SpinKitWave(color: Colors.green))
-                          ]))
-                  ): Container()),
+                      ? Container(
+                          width: MediaQuery.of(context).size.width,
+                          height: MediaQuery.of(context).size.height,
+                          color: Color.fromARGB(90, 0, 0, 0),
+                          child: AlertDialog(
+                              title: Text("Touchstone@MIT"),
+                              content: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: RichText(
+                                          textAlign: TextAlign.left,
+                                          text: TextSpan(
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .body1,
+                                            children: <TextSpan>[
+                                              TextSpan(
+                                                  text: 'Duo ',
+                                                  style: TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w900,
+                                                      color: Colors.green)),
+                                              TextSpan(
+                                                text:
+                                                    "Authentication is required.\nWaiting for response...",
+                                              ),
+                                            ],
+                                          ),
+                                        )),
+                                    Padding(
+                                        padding:
+                                            EdgeInsets.fromLTRB(0, 25.0, 10, 0),
+                                        child: SpinKitWave(color: Colors.green))
+                                  ])))
+                      : Container()),
             ])));
   }
 }

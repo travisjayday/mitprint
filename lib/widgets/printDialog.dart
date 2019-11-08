@@ -52,8 +52,7 @@ class _PrintDialogState extends State<PrintDialog> {
                   Expanded(
                       flex: 60,
                       child: Row(children: [
-                        Expanded(
-                            flex: 40,
+                        Flexible(
                             child: TextField(
                                 controller: copiesControl,
                                 keyboardType: TextInputType.number,
@@ -73,41 +72,36 @@ class _PrintDialogState extends State<PrintDialog> {
                                   }
                                 },
                                 decoration: InputDecoration(hintText: "1"))),
-                        Expanded(
-                            flex: 60,
-                            child: Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  Padding(
-                                      padding: EdgeInsets.fromLTRB(0, 0, 10, 0),
-                                      child: SizedBox(
-                                          width: 36,
-                                          height: 36,
-                                          child: RaisedButton(
-                                            padding: EdgeInsets.all(0),
-                                            color: Colors.grey[400],
-                                            child: Icon(Icons.remove,
-                                                color: Colors.white),
-                                            onPressed: () => setState(() =>
-                                                copiesControl.text = (copies > 1
-                                                        ? --copies
-                                                        : copies)
+                        Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Padding(
+                                  padding: EdgeInsets.fromLTRB(0, 0, 10, 0),
+                                  child: SizedBox(
+                                      width: 36,
+                                      height: 36,
+                                      child: RaisedButton(
+                                        padding: EdgeInsets.all(0),
+                                        color: Colors.grey[400],
+                                        child: Icon(Icons.remove,
+                                            color: Colors.white),
+                                        onPressed: () => setState(() =>
+                                            copiesControl.text =
+                                                (copies > 1 ? --copies : copies)
                                                     .toString()),
-                                          ))),
-                                  SizedBox(
-                                    width: 36,
-                                    height: 36,
-                                    child: RaisedButton(
-                                      padding: EdgeInsets.all(0),
-                                      color: Colors.grey[400],
-                                      child:
-                                          Icon(Icons.add, color: Colors.white),
-                                      onPressed: () => setState(() =>
-                                          copiesControl.text =
-                                              (++copies).toString()),
-                                    ),
-                                  )
-                                ]))
+                                      ))),
+                              SizedBox(
+                                width: 36,
+                                height: 36,
+                                child: RaisedButton(
+                                  padding: EdgeInsets.all(0),
+                                  color: Colors.grey[400],
+                                  child: Icon(Icons.add, color: Colors.white),
+                                  onPressed: () => setState(() => copiesControl
+                                      .text = (++copies).toString()),
+                                ),
+                              )
+                            ])
                       ])),
                 ],
               )

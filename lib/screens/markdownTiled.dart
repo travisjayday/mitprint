@@ -29,10 +29,10 @@ class _MarkdownTiledState extends State<MarkdownTiled> {
 
     () async {
       String md = await rootBundle.loadString(file);
-      List<String> sections = md.split("##");
+      List<String> sections = md.split(" ## ");
       for (String section in sections) {
         if (section.length < 3) continue;
-        if (!section.startsWith("#")) section = "##" + section;
+        if (!section.startsWith("#")) section = "## " + section;
         cards.add(Card(
             margin: EdgeInsets.symmetric(vertical: 6.0),
             child: Padding(

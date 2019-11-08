@@ -34,10 +34,10 @@ public class MainActivity extends FlutterActivity {
                         String params[] = {user, pass, auth, filePath, printer, copies, title};
                         System.out.println("Started new SSH job");
                         printjob = new DirectAthenaSSH(channel);
-                        printjob.execute(params);
+                        printjob.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, params);
                     }
                     else if (call.method.equals("cancelPrintjob")) {
-                        printjob.cancel(true);
+                        printjob.userCancel();
                     }
                 }});
     }

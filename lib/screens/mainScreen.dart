@@ -226,10 +226,8 @@ class _MainScreenState extends State<MainScreen> {
               bottom: MediaQuery.of(context).size.height * 0.19,
               // 65dp = appbar height, 24dp = statusbar height, 30dp = blue banner height
               top: totalPagePreview > 0 ? 65 + 24 + 32.0 : 65.0 + 24.0,
-              child: Align(
-                alignment: Alignment.center,
-                child: printPreviewView,
-              )),
+              child: printPreviewView,
+    ),
           IgnorePointer(
               child: ClipShadowPath(
             clipper: BackgroundClipper(),

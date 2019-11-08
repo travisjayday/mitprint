@@ -8,6 +8,7 @@ import com.jcraft.jsch.Channel;
 import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Packet;
 import com.jcraft.jsch.Session;
 import com.jcraft.jsch.SftpException;
@@ -23,6 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.net.SocketTimeoutException;
 import java.util.Properties;
 import java.util.stream.Stream;
 
@@ -31,18 +33,25 @@ import io.flutter.plugin.common.MethodChannel;
 public class DirectAthenaSSH extends AsyncTask<String, String, String> {
     private MethodChannel gui;
     private Session session;
+    private AthenaUser athenaUser;
+    private boolean cancelled;
 
     DirectAthenaSSH(MethodChannel gui) {
         this.gui = gui;
     }
 
     @Override
+    //TODO: Find a better way to cancel ssh job and session.connect();
     protected void onCancelled(){
+
+    }
+
+    public void userCancel() {
+        Log.d("JSH", "Cancelling SSH job...");
+        cancelled = true;
         if (session != null) {
             session.disconnect();
         }
-        // TODO: make better cancel
-        System.out.println("Cancelled SSH job");
     }
 
     @Override
@@ -55,7 +64,7 @@ public class DirectAthenaSSH extends AsyncTask<String, String, String> {
         String copies = params[5];
         String title = params[6];
 
-        AthenaUser athenaUser = new AthenaUser(user, pass, auth);
+        athenaUser = new AthenaUser(user, pass, auth);
 
         Properties config = new Properties();
         config.put("StrictHostKeyChecking", "no");
@@ -76,8 +85,18 @@ public class DirectAthenaSSH extends AsyncTask<String, String, String> {
             Thread.sleep(850);                      // pause to wait for animation to finish
             publishProgress("step:2| Connecting to Athena Dialup (DUO)...",
                     "log: Connecting to " + user + "@athena.dialup.mit.edu...");
-            session.setTimeout(1000 * 20);
-            session.connect();
+            int tries = 3;
+            while (tries > 0) {
+                publishProgress("log:Connection attempts remaining: " + tries);
+                tries--;
+                if (cancelled) return "";
+                try {
+                    session.setTimeout(30000);
+                } catch (JSchException t) {
+                    handleException(t);
+                }
+                session.connect();
+            }
 
             /* STEP 3 */
             // Create SFTP Channel
@@ -161,14 +180,27 @@ public class DirectAthenaSSH extends AsyncTask<String, String, String> {
                     "log: Print job '" + title + "' submitted succesfully for user "
                             + user + " on printer " + printer + "...");
         } catch (Exception e) {
-            if (e.toString().contains("authentication failures")) {
-                publishProgress("step:-1| Incorrect Kerberos Credentials!", "log: Error: " + e.toString());
-            } else {
-                publishProgress("step:-1| Something went wrong", "log: Error: " + e.toString());
-            }
+            handleException(e);
         }
 
         return "";
+    }
+
+    private void handleException(Exception e) {
+        if (e.toString().contains("authentication failures")) {
+            publishProgress("step:-1| Incorrect Kerberos Credentials!", "log: Error: " + e.toString());
+        }
+        else if (e.toString().contains("Connection refused")) {
+            publishProgress("step:-1|Connection Refused",
+                    "log: This could happen because you've used too many log-in attempts without" +
+                            "successfully authenticating with DUO.");
+        }
+        else if (e.toString().toLowerCase().contains("time")) {
+            publishProgress("step:-1|Connection Timed Out", "log: Error: " + e.toString());
+        }
+        else {
+            publishProgress("step:-1| Something went wrong", "log: Error: " + e.toString());
+        }
     }
 
     @Override
@@ -191,6 +223,7 @@ public class DirectAthenaSSH extends AsyncTask<String, String, String> {
         }
     }
 
+    // TODO: remove all this default logging and add a DEBUG feature in settings menu
     public static class MyLogger implements com.jcraft.jsch.Logger {
         static java.util.Hashtable name=new java.util.Hashtable();
         static{
@@ -204,7 +237,7 @@ public class DirectAthenaSSH extends AsyncTask<String, String, String> {
             return true;
         }
         public void log(int level, String message){
-            Log.d("JSSH", name.get(level).toString() + message);
+            Log.d("JSCH", name.get(level).toString() + message);
         }
     }
 
@@ -230,6 +263,12 @@ public class DirectAthenaSSH extends AsyncTask<String, String, String> {
         public String[] promptKeyboardInteractive(String destination, String name,
                                                   String instruction, String[] prompt,
                                                   boolean[] echo) {
+            System.out.println("name: " + name);
+            System.out.println("instruction: " + instruction);
+            for (int i = 0; i < prompt.length; i++) {
+                System.out.println("prompt: " + prompt[i]);
+            }
+            System.out.println("Responding with auth method: " + authMethod);
             return new String[]{authMethod};
         }
     }
