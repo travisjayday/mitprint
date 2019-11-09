@@ -35,6 +35,7 @@ public class DirectAthenaSSH extends AsyncTask<String, String, String> {
     private Session session;
     private AthenaUser athenaUser;
     private boolean cancelled;
+    private boolean sucesss = false;
 
     DirectAthenaSSH(MethodChannel gui) {
         this.gui = gui;
@@ -74,6 +75,7 @@ public class DirectAthenaSSH extends AsyncTask<String, String, String> {
             publishProgress("step:2| Connecting to Athena Dialup (DUO)...",
                     "log: Connecting to " + user + "@athena.dialup.mit.edu...");
             int tries = 2;
+            Exception latestException = null;
             while (tries > 0) {
                 publishProgress("log:Connection attempts remaining: " + tries);
                 tries--;
@@ -86,9 +88,15 @@ public class DirectAthenaSSH extends AsyncTask<String, String, String> {
                     session.setConfig(config);
                     session.setTimeout(40000);
                     session.connect();
-                } catch (JSchException t) { }
+                } catch (JSchException t) {
+                    latestException = t;
+                    handleException(t, true);
+                }
                 if (session.isConnected())
                     break;
+            }
+            if (!session.isConnected() && latestException != null) {
+                throw new Exception("Final failure cause: " + latestException.toString());
             }
 
             /* STEP 3 */
@@ -172,33 +180,44 @@ public class DirectAthenaSSH extends AsyncTask<String, String, String> {
             publishProgress("step:6| Job Submitted Successfully!",
                     "log: Print job '" + title + "' submitted succesfully for user "
                             + user + " on printer " + printer + "...");
+
+            sucesss = true;
         } catch (Exception e) {
-            handleException(e);
+            handleException(e, false);
         }
 
         return "";
     }
 
-    private void handleException(Exception e) {
-        if (e.toString().contains("authentication failures")) {
-            publishProgress("step:-1| Incorrect Kerberos Credentials!", "log: Error: " + e.toString());
+    //
+    // if silent is set, do not publish progress, handle exception silently
+    private void handleException(Exception e, boolean silent) {
+        if (e.toString().toLowerCase().contains("authentication failure")) {
+            if (!silent) publishProgress("step:-1| Incorrect Kerberos Credentials!");
+            publishProgress("log: Error: " + e.toString());
         }
         else if (e.toString().contains("Connection refused")) {
-            publishProgress("step:-1|Connection Refused",
-                    "log: This could happen because you've used too many log-in attempts without" +
-                            "successfully authenticating with DUO.");
+            if (!silent) publishProgress("step:-1|Connection Refused");
+            publishProgress("log: This could happen because you've used too many log-in attempts without" +
+                            " successfully authenticating with DUO.");
         }
         else if (e.toString().toLowerCase().contains("time")) {
-            publishProgress("step:-1|Connection Timed Out", "log: Error: " + e.toString());
+            if (!silent) publishProgress("step:-1|Connection Timed Out");
+            publishProgress("log: Error: " + e.toString());
+        }
+        else if (e.toString().toLowerCase().contains("auth cancel")) {
+            if (!silent) publishProgress("step:-1|Authentication Cancelled");
+            publishProgress("log: Error: " + e.toString());
         }
         else {
-            publishProgress("step:-1| Something went wrong", "log: Error: " + e.toString());
+            if (!silent) publishProgress("step:-1| Something went wrong");
+            publishProgress("log: Error: " + e.toString());
         }
     }
 
     @Override
     protected void onPostExecute(String result) {
-        gui.invokeMethod("printSuccess", "");
+        gui.invokeMethod("printSuccess", sucesss? "success" : "failure");
     }
 
     @Override
@@ -260,8 +279,13 @@ public class DirectAthenaSSH extends AsyncTask<String, String, String> {
             System.out.println("instruction: " + instruction);
             for (int i = 0; i < prompt.length; i++) {
                 System.out.println("prompt: " + prompt[i]);
+                // if user denies DUO request, return null, e.g. break connection attempt
+                if (prompt[i].contains("denied")) {
+                    return null;
+                }
             }
             System.out.println("Responding with auth method: " + authMethod);
+
             return new String[]{authMethod};
         }
     }

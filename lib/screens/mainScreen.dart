@@ -25,11 +25,11 @@ class _MainScreenState extends State<MainScreen> {
   SharedPreferences prefs;
 
   String filePath = "";
-  String kerb_user = "";
-  String kerb_pass = "";
+  String kerbUser = "";
+  String kerbPass = "";
   String printer = "mitprint";
-  String auth_method = "1";
-  bool remember_pass = false;
+  String authMethod = "1";
+  bool rememberPass = false;
 
   List<String> terminalLines = new List<String>();
   String currentStep = "";
@@ -53,7 +53,7 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _updatePrintPreviewColor() {
-    setState(() => printPreviewView.setGrayscale(printer == "mitprint"));
+    setState(() => printPreviewView.setGrayscale(printer == "mitprint", true));
   }
 
   void _printFile() async {
@@ -62,28 +62,28 @@ class _MainScreenState extends State<MainScreen> {
 
     if (filePath == "") {
       print("No file was selected, picking file...");
-      await printPreviewView.pickFile();
+      printPreviewView.pickFile();
       _updatePrintPreviewColor();
       return;
     }
 
-    kerb_user = (await prefs.getString("kerb_user")) ?? "";
-    kerb_pass = (await prefs.getString("kerb_pass")) ?? "";
-    printer = ((await prefs.getBool("color_print")) ?? false)
+    kerbUser = (prefs.getString("kerbUser")) ?? "";
+    kerbPass = (prefs.getString("kerbPass")) ?? "";
+    printer = ((prefs.getBool("color_print")) ?? false)
         ? "mitprint-color"
         : "mitprint";
-    remember_pass = (await prefs.getBool("remember_pass")) ?? false;
-    auth_method = (await prefs.getString("auth_method")) ?? "1";
+    rememberPass = (prefs.getBool("rememberPass")) ?? false;
+    authMethod = (prefs.getString("authMethod")) ?? "1";
 
-    if (kerb_user == "" || kerb_pass == "") {
+    if (kerbUser == "" || kerbPass == "") {
       print("No user/pass was selected...");
       var result = await showDialog(
           context: context,
           builder: (context) {
             return new KerbDialog(
-              pass: kerb_pass,
-              usr: kerb_user,
-              remember: remember_pass,
+              pass: kerbPass,
+              usr: kerbUser,
+              remember: rememberPass,
             );
           });
 
@@ -92,20 +92,20 @@ class _MainScreenState extends State<MainScreen> {
         return;
       }
 
-      kerb_user = result[0];
-      kerb_pass = result[1];
-      remember_pass = result[2];
+      kerbUser = result[0];
+      kerbPass = result[1];
+      rememberPass = result[2];
 
-      if (kerb_user == "") {
+      if (kerbUser == "") {
         print("Did not specify username!");
         return;
-      } else if (kerb_pass == "") {
+      } else if (kerbPass == "") {
         print("Did not specify password");
         return;
       } else {
-        await prefs.setBool("remember_pass", remember_pass);
-        await prefs.setString("kerb_user", kerb_user);
-        if (remember_pass) await prefs.setString("kerb_pass", kerb_pass);
+        await prefs.setBool("rememberPass", rememberPass);
+        await prefs.setString("kerbUser", kerbUser);
+        if (rememberPass) await prefs.setString("kerbPass", kerbPass);
       }
     }
 
@@ -122,9 +122,9 @@ class _MainScreenState extends State<MainScreen> {
 
     AthenaSSH(platform)
       ..submitPrintjob({
-        "user": kerb_user,
-        "pass": kerb_pass,
-        "auth": auth_method,
+        "user": kerbUser,
+        "pass": kerbPass,
+        "auth": authMethod,
         "filePath": filePath,
         "printer": printer,
         "copies": copies,
@@ -148,14 +148,14 @@ class _MainScreenState extends State<MainScreen> {
     print("loading shared prefs");
     prefs = await SharedPreferences.getInstance();
     setState(() {
-      kerb_user = prefs.getString("kerb_user") ?? "";
+      kerbUser = prefs.getString("kerbUser") ?? "";
       printer = ((prefs.getBool("color_print")) ?? false)
           ? "mitprint-color"
           : "mitprint";
-      auth_method = prefs.getString("auth_method");
-      if (auth_method == null) {
-        auth_method = "1";
-        prefs.setString("auth_method", "1");
+      authMethod = prefs.getString("authMethod");
+      if (authMethod == null) {
+        authMethod = "1";
+        prefs.setString("authMethod", "1");
       }
     });
   }
@@ -175,9 +175,8 @@ class _MainScreenState extends State<MainScreen> {
           totalPagePreview = totalPages;
         });
       },
-      mainScreen: this.widget,
-      grayscale: printer == "mitprint",
     );
+    printPreviewView.setGrayscale(printer == "mitprint", false);
     BackButtonInterceptor.add(_cancelSSH);
   }
 
@@ -200,8 +199,8 @@ class _MainScreenState extends State<MainScreen> {
                       color: Colors.white, fontWeight: FontWeight.w600))));
     }
 
-    if (kerb_user != "")
-      texts.add(_txtFmt(kerb_user));
+    if (kerbUser != "")
+      texts.add(_txtFmt(kerbUser));
     else
       texts.add(_txtFmt(printer));
     texts.add(_txtFmt("$currentPagePreview/$totalPagePreview"));
@@ -294,8 +293,10 @@ class _MainScreenState extends State<MainScreen> {
             currentStep: currentStep,
             percentProgress: printProgress,
             doneCallback: () {
-              currentStep = "";
-              printProgress = 0.0;
+              setState(() {
+                currentStep = "";
+                printProgress = 0.0;
+              });
             },
           ),
           Positioned.fill(

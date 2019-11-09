@@ -4,10 +4,10 @@ import 'package:mitprint/widgets/terminalShell.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
 
 class LoadingScreen extends StatefulWidget {
-  TerminalShell terminalShell;
-  String currentStep;
-  double percentProgress;
-  Function doneCallback;
+  final TerminalShell terminalShell;
+  final String currentStep;
+  final double percentProgress;
+  final Function doneCallback;
 
   LoadingScreen(
       {Key key,
@@ -44,10 +44,9 @@ class _LoadingScreenState extends State<LoadingScreen>
                       children: [
                     GestureDetector(
                         onTap: () {
-                          setState(() {
-                            widget.currentStep = "";
+
                             widget.doneCallback();
-                          });
+
                         },
                         child: CircularPercentIndicator(
                           radius: 120,

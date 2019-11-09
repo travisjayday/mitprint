@@ -11,7 +11,7 @@ description: A mobile printing solution for MIT.
 # In iOS, build-name is used as CFBundleShortVersionString while build-number used as CFBundleVersion.
 # Read more about iOS versioning at
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
-version: 1.0.0+2
+version: 1.0.0+4
 
 environment:
   sdk: ">=2.1.0 <3.0.0"
@@ -19,19 +19,15 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  ssh: ^0.0.4
   file_picker: ^1.4.1
   pdf_render: ^0.57.0
-  file: ^5.1.0
   # this version includes obfuscated textfields needed for password
   shared_preferences_settings:
     git: https://github.com/BarthaBRW/shared_preferences_settings
   percent_indicator: ^2.1.1
   flutter_spinkit: ^3.1.0
-  flutter_swiper: ^1.1.6
   cupertino_icons: ^0.1.2
   shared_preferences: ^0.5.3+4
-  flutter_svg: ^0.14.2
   flutter_launcher_icons: ^0.7.4
   flutter_markdown: ^0.3.0
   url_launcher: ^5.2.5

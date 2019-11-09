@@ -15,15 +15,15 @@ class MitPrintSettings extends StatelessWidget {
           title: "Authentication",
           children: <Widget>[
             TextFieldModalSettingsTile(
-                settingKey: "kerb_user", title: "Set Kerberos Username"),
+                settingKey: "kerbUser", title: "Set Kerberos Username"),
             TextFieldModalSettingsTile(
                 obscureText: true,
-                settingKey: "kerb_pass",
+                settingKey: "kerbPass",
                 title: "Set Kerberos Password"),
             SwitchSettingsTile(
-                settingKey: "remember_pass", title: "Save & Remember Password"),
+                settingKey: "rememberPass", title: "Save & Remember Password"),
             RadioPickerSettingsTile(
-                settingKey: 'auth_method',
+                settingKey: 'authMethod',
                 title: 'Select Duo-authentication method',
                 values: {'1': 'Duo Push Notification', '2': 'Phone Call'})
           ],

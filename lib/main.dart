@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'screens/mainScreen.dart';
 
-void main() => runApp(MyApp());
+void main() => SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp])
+    .then((_) {
+  runApp(MyApp());
+});
 
 class MyApp extends StatelessWidget {
   // This widget is the root of your application.

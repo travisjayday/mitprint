@@ -21,6 +21,7 @@ A mobile printing solution for MIT Pharos printers.
 - `Connection Refused` - This means you've probably tried start print jobs too many times without authenticating yourself successfully with DUO. Hence, you've been temporarily locked out of your Kerberos account.
 - `Connection Timed Out` - The connection took too long to make (>40s). Are you connected to the Internet?
 - `Incorrect Kerberos Credentials` - You've probably mistyped your username or password. Try going into Settings, clearing your credentials, and then print again.
+- `Authentication Cancelled` - You probably didn't respond to the DUO prompt correctly
 - `Something went wrong` - This means something else went wrong. Click on the details button to find out what! If that didn't help...
 
  ### Make sure:

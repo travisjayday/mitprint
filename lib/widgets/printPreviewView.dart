@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:mitprint/screens/mainScreen.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'dart:io' as Io;
@@ -7,26 +6,24 @@ import 'package:pdf_render/pdf_render.dart';
 import 'dart:math';
 
 class PrintPreviewView extends StatefulWidget {
-  Function(String) callback;
-  Function(int, int) pageChangeCallback;
-  bool grayscale = true;
+  final Function(String) callback;
+  final Function(int, int) pageChangeCallback;
   final _PrintPreviewViewState state = _PrintPreviewViewState();
-  MainScreen mainScreen;
-  PrintPreviewView(
-      {this.mainScreen,
-      this.callback,
-      this.grayscale,
-      this.pageChangeCallback});
+  PrintPreviewView({this.callback, this.pageChangeCallback});
 
+  /// Exposed pickFile method for MainScreen so that big button can call it
   void pickFile() async {
     state._pickFile();
   }
 
-  void setGrayscale(gray) {
-    grayscale = gray;
-    state.setState(() {});
+  /// used by MainScreen to set PrintPreviewView to grayscale / color
+  void setGrayscale(gray, setState) {
+    state.grayscale = gray;
+    if (setState)
+      state.setState((){});
   }
 
+  /// used by MainScreen to reset view to initial state
   void clearPreview() {
     state.previewWidgets?.clear();
     state.rawImgs?.clear();
@@ -41,6 +38,8 @@ class PrintPreviewView extends StatefulWidget {
   _PrintPreviewViewState createState() => state;
 }
 
+/// Class that holds positioning / animation information for each card (page)
+/// in the preview.
 class CardTransform {
   Offset translate;
   double elevation;
@@ -83,35 +82,130 @@ class _PrintPreviewViewState extends State<PrintPreviewView>
   /// Temp var to not double pick a file
   bool pickingFile = false;
 
-  /// Load a pdf file and populate data lists in state
-  _renderPdfPreview(String filePath) async {
-    // get PDF data from file
-    final PdfDocument doc = await PdfDocument.openFile(filePath);
+  bool grayscale = false;
 
-    if (printPreviewImgsTransform == null)
-      printPreviewImgsTransform = new List<CardTransform>();
 
-    // Populate transform and raw preiew lists from back to front
-    // E.g. the last page is the first in the list. This makes it so
-    // that the last page is at the bottom of the stack in the build method
-    for (var i = doc.pageCount - 1; i >= 0; i--) {
-      PdfPage page = await doc.getPage(i + 1);
-      PdfPageImage pageImage = await page.render();
-      rawImgs.add(RawImage(image: pageImage.image));
-      printPreviewImgsTransform.add(
-        CardTransform(
-            scale: 1,
-            translate: Offset(0.0, 0.05 - 0.05 / (pow(1.5, i))),
-            elevation: 2 * (doc.pageCount - i) / doc.pageCount + 1,
-            animScale: AnimationController(
-                duration: const Duration(milliseconds: 500), vsync: this)),
-      );
+  /// Initialize state
+  @override
+  initState() {
+    super.initState();
+    initSingleCard();
+  }
+
+  /// Build UI
+  Widget build(BuildContext context) {
+    return Stack(alignment: Alignment.center, children: _buildPreviewImgs());
+  }
+
+  /// Builds & returns the list of previewWidgets
+  _buildPreviewImgs() {
+    if (pageCount == 0) return [_createSimpleCard(Container(), 0)];
+    if (previewWidgets != null) previewWidgets.clear();
+    endCount =
+    topPage - maxPageBuffer + 1 > 0 ? topPage - maxPageBuffer + 1 : 0;
+    for (int i = endCount; i < pageCount; i++) {
+      previewWidgets.add(_createCard(
+          Container(
+              foregroundDecoration: BoxDecoration(
+                  color: grayscale ? Colors.grey : null,
+                  backgroundBlendMode: grayscale ? BlendMode.saturation : null),
+              child: rawImgs[i]),
+          i));
     }
-    pageCount = doc.pageCount;
-    topPage = pageCount - 1;
-    /* the top page in the stack has the greatest index
-                                 e.g. first page in pdf has index pageCount -1*/
-    doc.dispose(); // dispose of pdf in memory
+    return previewWidgets;
+  }
+
+  /// Create a single CardWidget
+  Widget _createCard(Widget content, int pageNum) {
+    return ScaleTransition(
+      scale: Tween(begin: printPreviewImgsTransform[pageNum]?.scale, end: 1.3)
+          .animate(printPreviewImgsTransform[pageNum]?.animScale),
+      child: SlideTransition(
+          position: Tween<Offset>(
+              begin: printPreviewImgsTransform[pageNum]?.translate,
+              end: Offset(0.9, 0))
+              .animate(CurvedAnimation(
+              parent: printPreviewImgsTransform[pageNum]?.animScale,
+              curve: Curves.easeOutCirc,
+              reverseCurve: Curves.easeInCirc)),
+          child: GestureDetector(
+            // save card that is getting panned right now, to only
+            // swipe that card when onPanUpdate is called
+              onPanStart: (details) {
+                currentPan = pageNum;
+              },
+              onPanEnd: (details) {
+                currentPan = -1;
+              },
+              onPanUpdate: (details) {
+                if (details.delta.dx > 0 &&
+                    pageNum == topPage &&
+                    currentPan == pageNum &&
+                    pageNum > endCount) {
+                  // swipe right
+                  setState(() {
+                    printPreviewImgsTransform[topPage]?.animScale?.forward();
+                    topPage--;
+                  });
+                } else if (details.delta.dx < 0 &&
+                    pageNum == topPage &&
+                    currentPan == pageNum &&
+                    pageNum < pageCount - 1) {
+                  // swipe left
+                  topPage++;
+                  setState(() {
+                    printPreviewImgsTransform[topPage]?.animScale?.reverse();
+                  });
+                }
+                widget.pageChangeCallback(pageCount - topPage, pageCount);
+              },
+              child: _createSimpleCard(content, pageNum))),
+    );
+  }
+
+  Widget _createSimpleCard(Widget content, int pageNum) {
+    return Container(
+        color: Colors.transparent,
+        width: MediaQuery.of(context).size.height * 0.64,
+        height: MediaQuery.of(context).size.height * 0.64,
+        alignment: Alignment.center,
+        padding: EdgeInsets.all(10),
+        child: Material(
+            color: Colors.white,
+            elevation: printPreviewImgsTransform.length > 0
+                ? Tween<double>(
+                begin: printPreviewImgsTransform[pageNum]?.elevation,
+                end: 10.0)
+                .animate(CurvedAnimation(
+                parent: printPreviewImgsTransform[pageNum]?.animScale,
+                curve: Curves.easeOutCirc,
+                reverseCurve: Curves.easeInCirc)
+              ..addListener(() {
+                setState(() {});
+              }))
+                .value
+                : 10.0,
+            child: InkWell(
+              // When the user taps the button, show a snackbar.
+                onTap: () {
+                  _pickFile();
+                },
+                child: AspectRatio(
+                    aspectRatio: 8.5 / 11.0,
+                    child: Stack(children: [
+                      Center(child: printPreviewIcon),
+                      Positioned.fill(child: content)
+                    ])))));
+  }
+
+  initSingleCard() {
+    printPreviewImgsTransform = [
+      CardTransform(
+          translate: Offset(0.0, 0.0),
+          elevation: 1.0,
+          scale: 1.0,
+          animScale: AnimationController(vsync: this))
+    ];
   }
 
   /// Prompts user to pick a file, then starts the rendering process
@@ -126,7 +220,6 @@ class _PrintPreviewViewState extends State<PrintPreviewView>
     if (path != null) {
       pageCount = 0;
       print("page count: " + pageCount.toString());
-
 
       widget.callback(path);
       // initialize or clear data lists
@@ -149,7 +242,6 @@ class _PrintPreviewViewState extends State<PrintPreviewView>
         printPreviewIcon = SpinKitRing(color: Colors.grey[300], size: 110);
         initSingleCard();
       });
-
 
       if (path.endsWith(".pdf")) {
         await _renderPdfPreview(path);
@@ -180,139 +272,42 @@ class _PrintPreviewViewState extends State<PrintPreviewView>
       if (!unsupported)
         printPreviewIcon = Icon(Icons.add, color: Colors.grey[400], size: 100);
       else
-        printPreviewIcon = Text("Filetype not recongized.\n\nPrint at your own risk.");
+        printPreviewIcon =
+            Text("Filetype not recongized.\n\nPrint at your own risk.");
     });
   }
 
-  /// Builds & returns the list of previewWidgets
-  _buildPreviewImgs() {
-    if (pageCount == 0) return [_createCard(Container(), 0)];
-    if (previewWidgets != null) previewWidgets.clear();
-    endCount =
-        topPage - maxPageBuffer + 1 > 0 ? topPage - maxPageBuffer + 1 : 0;
-    for (int i = endCount; i < pageCount; i++) {
-      previewWidgets.add(_createCard(
-          Container(
-              foregroundDecoration: BoxDecoration(
-                  color: widget.grayscale ? Colors.grey : null,
-                  backgroundBlendMode:
-                      widget.grayscale ? BlendMode.saturation : null),
-              child: rawImgs[i]),
-          i));
+
+  /// Load a pdf file and populate data lists in state
+  _renderPdfPreview(String filePath) async {
+    // get PDF data from file
+    final PdfDocument doc = await PdfDocument.openFile(filePath);
+
+    if (printPreviewImgsTransform == null)
+      printPreviewImgsTransform = new List<CardTransform>();
+    else
+      printPreviewImgsTransform.clear();
+
+    // Populate transform and raw preiew lists from back to front
+    // E.g. the last page is the first in the list. This makes it so
+    // that the last page is at the bottom of the stack in the build method
+    for (var i = doc.pageCount - 1; i >= 0; i--) {
+      PdfPage page = await doc.getPage(i + 1);
+      PdfPageImage pageImage = await page.render();
+      rawImgs.add(RawImage(image: pageImage.image));
+      printPreviewImgsTransform.add(
+        CardTransform(
+            scale: 1,
+            translate: Offset(0.0, 0.05 - 0.05 / (pow(1.5, i))),
+            elevation: 2 * (doc.pageCount - i) / doc.pageCount + 1,
+            animScale: AnimationController(
+                duration: const Duration(milliseconds: 500), vsync: this)),
+      );
     }
-    return previewWidgets;
-  }
-
-  /// Create a single CardWidget
-  Widget _createCard(Widget content, int pageNum) {
-    return ScaleTransition(
-        scale: Tween(begin: printPreviewImgsTransform[pageNum].scale, end: 1.3)
-            .animate(printPreviewImgsTransform[pageNum]?.animScale),
-        child: SlideTransition(
-          position: Tween<Offset>(
-                  begin: printPreviewImgsTransform[pageNum].translate,
-                  end: Offset(0.9, 0))
-              .animate(CurvedAnimation(
-                  parent: printPreviewImgsTransform[pageNum]?.animScale,
-                  curve: Curves.easeOutCirc,
-                  reverseCurve: Curves.easeInCirc)),
-          child: FadeTransition(
-              opacity: Tween(begin: 1.0, end: 1.0).animate(CurvedAnimation(
-                  parent: printPreviewImgsTransform[pageNum]?.animScale,
-                  curve: Curves.easeOutCirc,
-                  reverseCurve: Curves.linear)),
-              child: GestureDetector(
-                  // save card that is getting panned right now, to only
-                  // swipe that card when onPanUpdate is called
-                  onPanStart: (details) {
-                    currentPan = pageNum;
-                  },
-                  onPanEnd: (details) {
-                    currentPan = -1;
-                  },
-                  onPanUpdate: (details) {
-                    if (details.delta.dx > 0 &&
-                        pageNum == topPage &&
-                        currentPan == pageNum &&
-                        pageNum > endCount) {
-                      // swipe right
-                      setState(() {
-                        printPreviewImgsTransform[topPage]
-                            ?.animScale
-                            ?.forward();
-                        topPage--;
-                      });
-                    } else if (details.delta.dx < 0 &&
-                        pageNum == topPage &&
-                        currentPan == pageNum &&
-                        pageNum < pageCount - 1) {
-                      // swipe left
-                      topPage++;
-                      setState(() {
-                        printPreviewImgsTransform[topPage]
-                            ?.animScale
-                            ?.reverse();
-                      });
-                    }
-                    widget.pageChangeCallback(pageCount - topPage, pageCount);
-                  },
-                  child: Container(
-                      color: Colors.transparent,
-                      width: 450,
-                      height: 450,
-                      alignment: Alignment.center,
-                      padding: EdgeInsets.all(10),
-                      child: Material(
-                          color: Colors.white,
-                          elevation: Tween<double>(
-                                  begin: printPreviewImgsTransform[pageNum]
-                                      .elevation,
-                                  end: 10.0)
-                              .animate(CurvedAnimation(
-                                  parent: printPreviewImgsTransform[pageNum]
-                                      ?.animScale,
-                                  curve: Curves.easeOutCirc,
-                                  reverseCurve: Curves.easeInCirc)
-                                ..addListener(() {
-                                  setState(() {});
-                                }))
-                              .value,
-                          child: InkWell(
-                              // When the user taps the button, show a snackbar.
-                              onTap: () {
-                                _pickFile();
-                              },
-                              child: AspectRatio(
-                                  aspectRatio: 8.5 / 11.0,
-                                  child: Stack(children: [
-                                    Center(child: printPreviewIcon),
-                                    Positioned.fill(child: content)
-                                  ]))))))),
-        ));
-  }
-
-  initSingleCard() {
-    printPreviewImgsTransform = [
-      CardTransform(
-          translate: Offset(0.0, 0.0),
-          elevation: 1.0,
-          scale: 1.0,
-          animScale: AnimationController(vsync: this))
-    ];
-  }
-
-  /// Initialize state
-  @override
-  initState() {
-    super.initState();
-    initSingleCard();
-  }
-
-  /// Build UI
-  Widget build(BuildContext context) {
-    return Stack(
-        alignment: Alignment.center,
-        children: _buildPreviewImgs());
-
+    pageCount = doc.pageCount;
+    topPage = pageCount - 1;
+    /* the top page in the stack has the greatest index
+                                 e.g. first page in pdf has index pageCount -1*/
+    doc.dispose(); // dispose of pdf in memory
   }
 }

@@ -38,7 +38,8 @@ class AthenaSSH {
             currentStep++ / totalSteps.toDouble());
         break;
       case "printSuccess":
-        printSuccess();
+        if (call.arguments == "success")
+          printSuccess();
     }
   }
 }
