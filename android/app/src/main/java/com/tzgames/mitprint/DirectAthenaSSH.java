@@ -3,46 +3,38 @@ package com.tzgames.mitprint;
 import android.os.AsyncTask;
 import android.util.Log;
 
-import com.jcraft.jsch.Buffer;
 import com.jcraft.jsch.Channel;
 import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
-import com.jcraft.jsch.Packet;
 import com.jcraft.jsch.Session;
 import com.jcraft.jsch.SftpException;
 import com.jcraft.jsch.SftpProgressMonitor;
 import com.jcraft.jsch.UIKeyboardInteractive;
 import com.jcraft.jsch.UserInfo;
 
-import org.json.JSONObject;
-
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.PrintStream;
-import java.net.SocketTimeoutException;
 import java.util.Properties;
-import java.util.stream.Stream;
 
 import io.flutter.plugin.common.MethodChannel;
 
 public class DirectAthenaSSH extends AsyncTask<String, String, String> {
     private MethodChannel gui;
     private Session session;
-    private AthenaUser athenaUser;
     private boolean cancelled;
-    private boolean sucesss = false;
+    private boolean success = false;
+    private static String TAG = "JSCH";
 
     DirectAthenaSSH(MethodChannel gui) {
         this.gui = gui;
     }
 
-    public void userCancel() {
-        Log.d("JSH", "Cancelling SSH job...");
+    void userCancel() {
+        Log.d(TAG, "Cancelling SSH job...");
         cancelled = true;
         if (session != null) {
             session.disconnect();
@@ -59,7 +51,7 @@ public class DirectAthenaSSH extends AsyncTask<String, String, String> {
         String copies = params[5];
         String title = params[6];
 
-        athenaUser = new AthenaUser(user, pass, auth);
+        AthenaUser athenaUser = new AthenaUser(pass, auth);
 
         Properties config = new Properties();
         config.put("StrictHostKeyChecking", "no");
@@ -123,7 +115,15 @@ public class DirectAthenaSSH extends AsyncTask<String, String, String> {
                 sftp.cd("PrintJobs");
             }
             File file = new File(filePath);
-            sftp.put(new FileInputStream(file), file.getName(), new SFTPMonitor());
+
+            // sanitize filename
+            String extension = "";
+            int idx = file.getName().lastIndexOf('.');
+            if (idx > 0) extension = file.getName().substring(idx + 1);
+            String remoteFileName = "job." + extension;
+            Log.d(TAG, "JDSKJFSLDJFKLSFJ :: :FILLE ISS : " + remoteFileName);
+
+            sftp.put(new FileInputStream(file), remoteFileName, new SFTPMonitor());
             sftp.disconnect();
             channel.disconnect();
 
@@ -137,20 +137,22 @@ public class DirectAthenaSSH extends AsyncTask<String, String, String> {
             String cmd = "lp" +
                     " -d " + printer +
                     " -n " + copies +
-                    " -t " + title +
-                    " -- ~/PrintJobs/" + file.getName() +
+                    " -t \"" + title + "\"" +
+                    " -- ~/PrintJobs/" + remoteFileName +
                     " ; rm -rf ~/PrintJobs";
+            publishProgress("log: Running: " + cmd);
             ((ChannelExec)channel).setCommand(cmd);
             channel.setInputStream(null);
 
             OutputStream out = new OutputStream() {
                 String buf = "";
                 @Override
-                public void write(int b) throws IOException {
+                public void write(int b) {
                     if (b != 10)
                         buf += (char) b;
                     else {
                         publishProgress("log: [Server] Error: occurred: " + buf);
+                        success = false;
                         buf = "";
                     }
                 }
@@ -165,21 +167,21 @@ public class DirectAthenaSSH extends AsyncTask<String, String, String> {
                     int i = in.read(tmp, 0, 1024);
                     if (i < 0) break;
                     String response = new String(tmp, 0, i);
-                    if (response.contains("request id is")) sucesss = true;
-                    publishProgress("log: [Server] " + );
+                    if (response.contains("request id is")) success = true;
+                    publishProgress("log: [Server] " + response);
                 }
                 if(channel.isClosed()){
                     publishProgress("log: [Server] exit-status: " + channel.getExitStatus());
                     break;
                 }
-                try{Thread.sleep(1000);}catch(Exception ee){}
+                try { Thread.sleep(1000); } catch(Exception ee){ Log.e(TAG, ee.toString()); }
             }
             channel.disconnect();
             session.disconnect();
 
             /* Step 6 */
             // Update GUI to reflect successful print job
-            if (sucesss)
+            if (success)
                 publishProgress("step:6| Job Submitted Successfully!",
                     "log: Print job '" + title + "' submitted succesfully for user "
                             + user + " on printer " + printer + "...");
@@ -222,7 +224,7 @@ public class DirectAthenaSSH extends AsyncTask<String, String, String> {
 
     @Override
     protected void onPostExecute(String result) {
-        gui.invokeMethod("printSuccess", sucesss? "success" : "failure");
+        gui.invokeMethod("printSuccess", success? "success" : "failure");
     }
 
     @Override
@@ -242,29 +244,27 @@ public class DirectAthenaSSH extends AsyncTask<String, String, String> {
 
     // TODO: remove all this default logging and add a DEBUG feature in settings menu
     public static class MyLogger implements com.jcraft.jsch.Logger {
-        static java.util.Hashtable name=new java.util.Hashtable();
+        static java.util.Hashtable<Integer, String> name = new java.util.Hashtable<>();
         static{
-            name.put(new Integer(DEBUG), "DEBUG: ");
-            name.put(new Integer(INFO), "INFO: ");
-            name.put(new Integer(WARN), "WARN: ");
-            name.put(new Integer(ERROR), "ERROR: ");
-            name.put(new Integer(FATAL), "FATAL: ");
+            name.put(DEBUG, "DEBUG: ");
+            name.put(INFO, "INFO: ");
+            name.put(WARN, "WARN: ");
+            name.put(ERROR, "ERROR: ");
+            name.put(FATAL, "FATAL: ");
         }
         public boolean isEnabled(int level){
             return true;
         }
         public void log(int level, String message){
-            Log.d("JSCH", name.get(level).toString() + message);
+            Log.d(TAG, name.get(level) + message);
         }
     }
 
     public static class AthenaUser implements UserInfo, UIKeyboardInteractive {
         private String password;
-        private String username;
         private String authMethod;
 
-        AthenaUser(String usr, String pass, String auth) {
-            username = usr;
+        AthenaUser(String pass, String auth) {
             password = pass;
             authMethod = auth;
         }
@@ -280,17 +280,15 @@ public class DirectAthenaSSH extends AsyncTask<String, String, String> {
         public String[] promptKeyboardInteractive(String destination, String name,
                                                   String instruction, String[] prompt,
                                                   boolean[] echo) {
-            System.out.println("name: " + name);
-            System.out.println("instruction: " + instruction);
-            for (int i = 0; i < prompt.length; i++) {
-                System.out.println("prompt: " + prompt[i]);
+            Log.d(TAG, "name: " + name);
+            Log.d(TAG, "instruction: " + instruction);
+            for (String p : prompt) {
+                Log.d(TAG, "prompt: " + p);
                 // if user denies DUO request, return null, e.g. break connection attempt
-                if (prompt[i].contains("denied")) {
+                if (p.contains("denied")) {
                     return null;
                 }
             }
-            System.out.println("Responding with auth method: " + authMethod);
-
             return new String[]{authMethod};
         }
     }

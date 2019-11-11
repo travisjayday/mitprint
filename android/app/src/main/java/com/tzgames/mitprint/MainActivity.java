@@ -2,8 +2,6 @@ package com.tzgames.mitprint;
 
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.util.Log;
-
 import io.flutter.app.FlutterActivity;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
@@ -21,7 +19,8 @@ public class MainActivity extends FlutterActivity {
         channel.setMethodCallHandler(
             new MethodChannel.MethodCallHandler() {
                 @Override
-                public void onMethodCall(MethodCall call, MethodChannel.Result result) {
+                public void onMethodCall(MethodCall call,
+                                         MethodChannel.Result result) {
                     if (call.method.equals("submitPrintjob")) {
                         String user = call.argument("user");
                         String pass = call.argument("pass");
@@ -31,8 +30,7 @@ public class MainActivity extends FlutterActivity {
                         String copies = call.argument("copies");
                         String title = call.argument("title");
 
-                        String params[] = {user, pass, auth, filePath, printer, copies, title};
-                        System.out.println("Started new SSH job");
+                        String[] params = {user, pass, auth, filePath, printer, copies, title};
                         printjob = new DirectAthenaSSH(channel);
                         printjob.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, params);
                     }

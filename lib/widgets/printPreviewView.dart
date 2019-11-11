@@ -184,7 +184,7 @@ class _PrintPreviewViewState extends State<PrintPreviewView>
                 setState(() {});
               }))
                 .value
-                : 10.0,
+                : 1.0,
             child: InkWell(
               // When the user taps the button, show a snackbar.
                 onTap: () {
