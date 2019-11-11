@@ -164,7 +164,9 @@ public class DirectAthenaSSH extends AsyncTask<String, String, String> {
                 while(in.available() > 0){
                     int i = in.read(tmp, 0, 1024);
                     if (i < 0) break;
-                    publishProgress("log: [Server] " + new String(tmp, 0, i));
+                    String response = new String(tmp, 0, i);
+                    if (response.contains("request id is")) sucesss = true;
+                    publishProgress("log: [Server] " + );
                 }
                 if(channel.isClosed()){
                     publishProgress("log: [Server] exit-status: " + channel.getExitStatus());
@@ -177,11 +179,14 @@ public class DirectAthenaSSH extends AsyncTask<String, String, String> {
 
             /* Step 6 */
             // Update GUI to reflect successful print job
-            publishProgress("step:6| Job Submitted Successfully!",
+            if (sucesss)
+                publishProgress("step:6| Job Submitted Successfully!",
                     "log: Print job '" + title + "' submitted succesfully for user "
                             + user + " on printer " + printer + "...");
-
-            sucesss = true;
+            else
+                publishProgress("step:6| Something went wrong",
+                        "log: Print job '" + title + "' NOT submitted for user "
+                                + user + " on printer " + printer + "...");
         } catch (Exception e) {
             handleException(e, false);
         }

@@ -119,6 +119,7 @@ class _MainScreenState extends State<MainScreen> {
     if (printConfig == null) return;
     String copies = printConfig["copies"];
     String title = printConfig["title"];
+    //title = title.replaceAll(new RegExp("[\\/:'`()\"?\*<|>]"), ""));
 
     AthenaSSH(platform)
       ..submitPrintjob({
