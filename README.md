@@ -36,7 +36,7 @@ A mobile printing solution for MIT Pharos printers.
 
 
  ## Development
-MIT Print is developed with Flutter, a cross platform mobile development SDK. Currently, running on iOS should be possible but has not been tested.
+MIT Print is developed with Flutter, a cross platform mobile development SDK. Currently, running on iOS should be possible but has not been tested. If you are an iOS developer, please contact <tjz@mit.edu> or just contribute to the GitRepo. We need native SSH for iOS!
 
 The app is currently available on Google Play [here](https://play.google.com/store/apps/details?id=com.tzgames.mitprint). The GitHub repo is located [here](https://github.com/travisjayday/mitprint). Make sure to leave a review if you like it!
 
